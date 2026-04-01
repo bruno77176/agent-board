@@ -71,7 +71,7 @@ export default function App() {
       {/* Main */}
       <main className="flex-1 overflow-hidden">
         {projectId
-          ? <BoardView projectId={projectId} view={view} />
+          ? <BoardView projectId={projectId} epicId={epicId} view={view} />
           : (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">

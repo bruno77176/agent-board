@@ -5,9 +5,9 @@ import type { Story, Workflow, Project, Agent } from '@/lib/api'
 import { KanbanColumn } from '@/components/KanbanColumn'
 import { StoryDetail } from '@/components/StoryDetail'
 
-interface Props { projectId: string; view: 'board' | 'list' | 'backlog' }
+interface Props { projectId: string; epicId?: string; view: 'board' | 'list' | 'backlog' }
 
-export function BoardView({ projectId, view }: Props) {
+export function BoardView({ projectId, epicId, view }: Props) {
   const [selectedStory, setSelectedStory] = useState<Story | null>(null)
 
   const { data: stories = [] } = useQuery({
@@ -15,6 +15,17 @@ export function BoardView({ projectId, view }: Props) {
     queryFn: () => api.stories.list(projectId),
     enabled: !!projectId,
   })
+
+  // Filter by epic if selected — match stories whose feature belongs to the selected epic
+  const { data: features = [] } = useQuery({
+    queryKey: ['features-all', epicId],
+    queryFn: () => epicId ? api.features.list(epicId) : Promise.resolve([]),
+    enabled: !!epicId,
+  })
+  const epicFeatureIds = new Set((features as any[]).map((f: any) => f.id))
+  const filteredStories = epicId
+    ? (stories as Story[]).filter(s => epicFeatureIds.has(s.feature_id))
+    : (stories as Story[])
 
   const { data: agents = [] } = useQuery({ queryKey: ['agents'], queryFn: api.agents.list })
   const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: api.projects.list })
@@ -39,7 +50,7 @@ export function BoardView({ projectId, view }: Props) {
               <KanbanColumn
                 key={state.id}
                 state={state}
-                stories={(stories as Story[]).filter(s => s.status === state.id)}
+                stories={filteredStories.filter(s => s.status === state.id)}
                 agents={typedAgents}
                 onCardClick={setSelectedStory}
               />
@@ -71,7 +82,7 @@ export function BoardView({ projectId, view }: Props) {
               </tr>
             </thead>
             <tbody>
-              {(stories as Story[]).map(s => {
+              {filteredStories.map(s => {
                 const agent = s.assigned_agent_id ? agentMap[s.assigned_agent_id] : null
                 const state = workflow.states.find(st => st.id === s.status)
                 return (
@@ -99,7 +110,7 @@ export function BoardView({ projectId, view }: Props) {
   }
 
   // Backlog
-  const backlogStories = (stories as Story[]).filter(s => s.status === 'backlog')
+  const backlogStories = filteredStories.filter(s => s.status === 'backlog')
   return (
     <>
       <div className="p-6 overflow-y-auto h-full">
