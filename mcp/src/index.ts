@@ -1,0 +1,237 @@
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
+import { z } from 'zod'
+import { board } from './tools/board.js'
+
+const server = new McpServer({ name: 'agent-board', version: '1.0.0' })
+
+// ── Board reading ─────────────────────────────────────────────────
+
+server.tool(
+  'get_board',
+  'Get all stories for a project, grouped by status',
+  { project_id: z.string().describe('Project ID') },
+  async ({ project_id }) => {
+    const stories = await board.getStories(project_id)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(stories, null, 2) }] }
+  }
+)
+
+server.tool(
+  'get_story',
+  'Get a single story with full event history',
+  { story_id: z.string() },
+  async ({ story_id }) => {
+    const story = await board.getStory(story_id)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(story, null, 2) }] }
+  }
+)
+
+server.tool(
+  'list_agents',
+  'List all typed agents on the roster',
+  {},
+  async () => {
+    const agents = await board.listAgents()
+    return { content: [{ type: 'text' as const, text: JSON.stringify(agents, null, 2) }] }
+  }
+)
+
+// ── Creating work ─────────────────────────────────────────────────
+
+server.tool(
+  'create_epic',
+  'Create a new epic under a project',
+  {
+    project_id: z.string(),
+    title: z.string(),
+    description: z.string().optional(),
+    version: z.string().optional().describe('e.g. v0.0.1'),
+  },
+  async (args) => {
+    const epic = await board.createEpic(args)
+    return { content: [{ type: 'text' as const, text: `Epic created: ${epic.id} — ${epic.title}` }] }
+  }
+)
+
+server.tool(
+  'create_feature',
+  'Create a new feature under an epic',
+  {
+    epic_id: z.string(),
+    title: z.string(),
+    description: z.string().optional(),
+    tags: z.array(z.string()).optional(),
+  },
+  async (args) => {
+    const feature = await board.createFeature(args)
+    return { content: [{ type: 'text' as const, text: `Feature created: ${feature.id} — ${feature.title}` }] }
+  }
+)
+
+server.tool(
+  'create_story',
+  'Create a new story under a feature. Stories must be ≤10 min estimated work.',
+  {
+    feature_id: z.string(),
+    title: z.string(),
+    description: z.string().optional(),
+    priority: z.enum(['high', 'medium', 'low']).optional().default('medium'),
+    tags: z.array(z.string()).optional(),
+    estimated_minutes: z.number().optional().describe('Estimated minutes. Warn if >10.'),
+    parent_story_id: z.string().optional().describe('For TDD sub-stories'),
+  },
+  async (args) => {
+    if (args.estimated_minutes && args.estimated_minutes > 10) {
+      return {
+        content: [{
+          type: 'text' as const,
+          text: `⚠️ Story "${args.title}" estimated at ${args.estimated_minutes} min exceeds the 10-min granularity guideline. Break it down further before creating.`
+        }]
+      }
+    }
+    const story = await board.createStory(args)
+    return { content: [{ type: 'text' as const, text: `Story created: ${story.id} — ${story.title} [${story.status}]` }] }
+  }
+)
+
+// ── Agent workflow ────────────────────────────────────────────────
+
+server.tool(
+  'start_story',
+  'Assign a story to an agent and move it to In Progress',
+  { story_id: z.string(), agent_id: z.string().describe('Agent slug, e.g. tess-ter') },
+  async ({ story_id, agent_id }) => {
+    const story = await board.moveStatus(story_id, 'in_progress', agent_id, 'Started work')
+    return { content: [{ type: 'text' as const, text: `"${story.title}" → In Progress (${agent_id})` }] }
+  }
+)
+
+server.tool(
+  'move_story',
+  'Move a story to any valid status',
+  {
+    story_id: z.string(),
+    status: z.string().describe('Target status, e.g. todo, in_progress, review, qa, done'),
+    agent_id: z.string().optional(),
+    comment: z.string().optional(),
+  },
+  async ({ story_id, status, agent_id, comment }) => {
+    const story = await board.moveStatus(story_id, status, agent_id, comment)
+    return { content: [{ type: 'text' as const, text: `"${story.title}" → ${status}` }] }
+  }
+)
+
+server.tool(
+  'request_review',
+  'Move a story to the Review column and log the requesting agent',
+  { story_id: z.string(), agent_id: z.string().optional() },
+  async ({ story_id, agent_id }) => {
+    const story = await board.moveStatus(story_id, 'review', agent_id, 'Requested code review')
+    return { content: [{ type: 'text' as const, text: `"${story.title}" → Review` }] }
+  }
+)
+
+server.tool(
+  'complete_story',
+  'Mark a story as Done. Requires checklist confirmation.',
+  {
+    story_id: z.string(),
+    agent_id: z.string().optional(),
+    checklist_confirmed: z.boolean().describe('Set true only if: tests pass, code reviewed, no regressions'),
+  },
+  async ({ story_id, agent_id, checklist_confirmed }) => {
+    if (!checklist_confirmed) {
+      return {
+        content: [{
+          type: 'text' as const,
+          text: '❌ Cannot complete: checklist_confirmed must be true. Verify all tests pass, code is reviewed, and no regressions introduced.'
+        }]
+      }
+    }
+    const story = await board.moveStatus(story_id, 'done', agent_id, '✅ Completed — checklist confirmed')
+    return { content: [{ type: 'text' as const, text: `"${story.title}" → Done ✅` }] }
+  }
+)
+
+server.tool(
+  'escalate_story',
+  'Escalate after 3 failures: returns story to backlog and creates a blocking arch-review story',
+  {
+    story_id: z.string(),
+    agent_id: z.string().optional(),
+    reason: z.string().describe('Why escalating — what failed 3 times'),
+  },
+  async ({ story_id, agent_id, reason }) => {
+    const story = await board.getStory(story_id)
+    await board.moveStatus(story_id, 'backlog', agent_id, `🚨 Escalated after 3 failures: ${reason}`)
+    const archStory = await board.createStory({
+      feature_id: story.feature_id,
+      title: `[ARCH REVIEW] ${story.title}`,
+      description: `Escalated from story ${story_id}.\n\nReason: ${reason}`,
+      priority: 'high',
+      tags: ['arch-review', 'blocked'],
+    })
+    return {
+      content: [{
+        type: 'text' as const,
+        text: `🚨 Escalated. Story "${story.title}" returned to backlog. Arch review story created: ${archStory.id}`
+      }]
+    }
+  }
+)
+
+server.tool(
+  'add_comment',
+  'Add a comment to any entity (story, feature, or epic) for traceability',
+  {
+    target_type: z.enum(['story', 'feature', 'epic']).describe('What you are commenting on'),
+    target_id: z.string().describe('ID of the story, feature, or epic'),
+    agent_id: z.string().optional().describe('Agent slug making the comment'),
+    comment: z.string().describe('The comment — be descriptive for traceability'),
+  },
+  async ({ target_type, target_id, agent_id, comment }) => {
+    await board.createEvent({ target_type, target_id, agent_id, comment })
+    return { content: [{ type: 'text' as const, text: `Comment added to ${target_type} ${target_id}` }] }
+  }
+)
+
+// ── Superpowers-specific ──────────────────────────────────────────
+
+server.tool(
+  'create_tdd_cycle',
+  'Create 3 TDD sub-stories (RED/GREEN/REFACTOR) under a parent story',
+  {
+    parent_story_id: z.string().describe('The story this TDD cycle belongs to'),
+    feature_id: z.string().describe('Feature ID (same as parent story)'),
+  },
+  async ({ parent_story_id, feature_id }) => {
+    const red = await board.createStory({ feature_id, parent_story_id, title: '🔴 RED — Write failing test', priority: 'high', estimated_minutes: 5 })
+    const green = await board.createStory({ feature_id, parent_story_id, title: '🟢 GREEN — Make test pass (minimal code)', priority: 'high', estimated_minutes: 5 })
+    const refactor = await board.createStory({ feature_id, parent_story_id, title: '🔵 REFACTOR — Clean up', priority: 'medium', estimated_minutes: 5 })
+    return {
+      content: [{
+        type: 'text' as const,
+        text: `TDD cycle created:\n  🔴 ${red.id} — ${red.title}\n  🟢 ${green.id} — ${green.title}\n  🔵 ${refactor.id} — ${refactor.title}`
+      }]
+    }
+  }
+)
+
+server.tool(
+  'link_worktree',
+  'Link a git branch/worktree to a story for traceability',
+  {
+    story_id: z.string(),
+    git_branch: z.string().describe('Branch name, e.g. feat/login-form'),
+  },
+  async ({ story_id, git_branch }) => {
+    await board.updateStory(story_id, { git_branch })
+    return { content: [{ type: 'text' as const, text: `Story ${story_id} linked to branch: ${git_branch}` }] }
+  }
+)
+
+// ── Start ─────────────────────────────────────────────────────────
+
+const transport = new StdioServerTransport()
+await server.connect(transport)
