@@ -102,3 +102,78 @@ describe('stories', () => {
     expect(res.body.target_type).toBe('epic')
   })
 })
+
+describe('PATCH /api/epics/:id', () => {
+  beforeEach(() => closeDb())
+  it('updates epic start_date and end_date', async () => {
+    const app = buildApp()
+    const proj = await request(app).post('/api/projects').send({ key: 'RMP', name: 'Roadmap', workflow_id: 'standard' })
+    const epic = await request(app).post('/api/epics').send({ project_id: proj.body.id, title: 'Epic 1' })
+    const res = await request(app)
+      .patch(`/api/epics/${epic.body.id}`)
+      .send({ start_date: '2026-04-01', end_date: '2026-04-30' })
+    expect(res.status).toBe(200)
+    expect(res.body.start_date).toBe('2026-04-01')
+    expect(res.body.end_date).toBe('2026-04-30')
+  })
+})
+
+let keyCounter = 0
+async function createStory(app: any, title = 'Test Story') {
+  const key = `L${++keyCounter}`
+  const proj = await request(app).post('/api/projects').send({ key, name: 'Link Test', workflow_id: 'standard' })
+  const epic = await request(app).post('/api/epics').send({ project_id: proj.body.id, title: 'E1' })
+  const feat = await request(app).post('/api/features').send({ epic_id: epic.body.id, title: 'F1' })
+  const story = await request(app).post('/api/stories').send({ feature_id: feat.body.id, title })
+  return { proj: proj.body, epic: epic.body, feat: feat.body, story: story.body }
+}
+
+describe('Story links', () => {
+  beforeEach(() => closeDb())
+
+  it('creates a link between two stories', async () => {
+    const app = buildApp()
+    const { story: a } = await createStory(app, 'Story A')
+    const { story: b } = await createStory(app, 'Story B')
+    const res = await request(app)
+      .post(`/api/stories/${a.id}/links`)
+      .send({ to_story_id: b.id, link_type: 'blocks' })
+    expect(res.status).toBe(201)
+    expect(res.body.link_type).toBe('blocks')
+    expect(res.body.from_story_id).toBe(a.id)
+    expect(res.body.to_story_id).toBe(b.id)
+  })
+
+  it('returns links for a story including inverse direction', async () => {
+    const app = buildApp()
+    const { story: a } = await createStory(app, 'A')
+    const { story: b } = await createStory(app, 'B')
+    await request(app).post(`/api/stories/${a.id}/links`).send({ to_story_id: b.id, link_type: 'blocks' })
+    const res = await request(app).get(`/api/stories/${b.id}/links`)
+    expect(res.status).toBe(200)
+    expect(res.body.some((l: any) => l.link_type === 'blocks' && l.from_story_id === a.id)).toBe(true)
+  })
+
+  it('deletes a link', async () => {
+    const app = buildApp()
+    const { story: a } = await createStory(app, 'A')
+    const { story: b } = await createStory(app, 'B')
+    const create = await request(app).post(`/api/stories/${a.id}/links`).send({ to_story_id: b.id, link_type: 'relates_to' })
+    const linkId = create.body.id
+    const del = await request(app).delete(`/api/stories/${a.id}/links/${linkId}`)
+    expect(del.status).toBe(204)
+    const list = await request(app).get(`/api/stories/${a.id}/links`)
+    expect(list.body).toHaveLength(0)
+  })
+
+  it('includes links in GET /api/stories/:id', async () => {
+    const app = buildApp()
+    const { story: a } = await createStory(app, 'A')
+    const { story: b } = await createStory(app, 'B')
+    await request(app).post(`/api/stories/${a.id}/links`).send({ to_story_id: b.id, link_type: 'blocks' })
+    const res = await request(app).get(`/api/stories/${a.id}`)
+    expect(res.status).toBe(200)
+    expect(Array.isArray(res.body.links)).toBe(true)
+    expect(res.body.links.length).toBeGreaterThan(0)
+  })
+})
