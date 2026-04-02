@@ -1,16 +1,15 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '@/lib/api'
-import type { Epic, Feature, Story, Agent } from '@/lib/api'
-import { ArrowLeft, ChevronDown, ChevronRight } from 'lucide-react'
-import { useState } from 'react'
+import type { Epic, Feature, Story } from '@/lib/api'
+import { ArrowLeft } from 'lucide-react'
 
 interface Props { epicId: string; projectKey: string }
 
 export function EpicDetailView({ epicId }: Props) {
   const { projectKey } = useParams<{ projectKey: string }>()
   const navigate = useNavigate()
-  const [expandedFeatures, setExpandedFeatures] = useState<Set<string>>(new Set())
+  const queryClient = useQueryClient()
 
   const { data: epic, isLoading: epicLoading } = useQuery({
     queryKey: ['epic', epicId],
@@ -32,22 +31,14 @@ export function EpicDetailView({ epicId }: Props) {
     enabled: !!epicId,
   })
 
-  const { data: agents = [] } = useQuery({ queryKey: ['agents'], queryFn: api.agents.list })
+  const updateEpic = useMutation({
+    mutationFn: (data: Partial<Epic>) => api.epics.update((epic as Epic).id, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['epics'] }),
+  })
 
   const typedEpic = epic as Epic | undefined
   const typedFeatures = features as Feature[]
   const typedStories = stories as Story[]
-  const typedAgents = agents as Agent[]
-  const agentMap = Object.fromEntries(typedAgents.map(a => [a.id, a]))
-
-  const toggleFeature = (id: string) => {
-    setExpandedFeatures(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
 
   if (epicLoading) {
     return <div className="flex items-center justify-center h-full text-slate-400 text-sm">Loading epic...</div>
@@ -74,6 +65,20 @@ export function EpicDetailView({ epicId }: Props) {
             {typedEpic.description && (
               <p className="text-xs text-slate-500 mt-1">{typedEpic.description}</p>
             )}
+            <div className="flex items-center gap-4 mt-2">
+              <label className="text-xs text-slate-500">
+                Start
+                <input type="date" defaultValue={typedEpic.start_date ?? ''}
+                  onChange={e => updateEpic.mutate({ start_date: e.target.value || undefined })}
+                  className="ml-2 text-xs border border-slate-200 rounded px-2 py-0.5" />
+              </label>
+              <label className="text-xs text-slate-500">
+                End
+                <input type="date" defaultValue={typedEpic.end_date ?? ''}
+                  onChange={e => updateEpic.mutate({ end_date: e.target.value || undefined })}
+                  className="ml-2 text-xs border border-slate-200 rounded px-2 py-0.5" />
+              </label>
+            </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             {typedEpic.version && (
@@ -95,41 +100,22 @@ export function EpicDetailView({ epicId }: Props) {
           <div className="space-y-2">
             {typedFeatures.map(feature => {
               const featureStories = typedStories.filter(s => s.feature_id === feature.id)
-              const expanded = expandedFeatures.has(feature.id)
               return (
-                <div key={feature.id} className="bg-white rounded-lg border border-slate-200">
-                  <button
-                    onClick={() => toggleFeature(feature.id)}
-                    className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-slate-50 rounded-lg"
-                  >
-                    {expanded
-                      ? <ChevronDown className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                      : <ChevronRight className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                    }
-                    <span className="text-sm font-medium text-slate-800 flex-1 truncate">{feature.title}</span>
-                    <span className="text-xs text-slate-400">{featureStories.length} stories</span>
-                  </button>
-                  {expanded && featureStories.length > 0 && (
-                    <div className="border-t border-slate-100">
-                      {featureStories.map(story => {
-                        const agent = story.assigned_agent_id ? agentMap[story.assigned_agent_id] : null
-                        return (
-                          <button
-                            key={story.id}
-                            onClick={() => navigate(`/${projectKey ?? ''}/stories/${story.id}`)}
-                            className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50 border-b border-slate-50 last:border-0"
-                          >
-                            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-slate-300" />
-                            <span className="text-xs text-slate-700 flex-1 truncate">{story.title}</span>
-                            <span className="text-xs text-slate-400 capitalize">{story.priority}</span>
-                            {agent && (
-                              <span className="text-xs text-slate-400">{agent.avatar_emoji}</span>
-                            )}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  )}
+                <div
+                  key={feature.id}
+                  onClick={() => navigate(`/${projectKey ?? ''}/features/${feature.short_id ?? feature.id}`)}
+                  className="bg-white rounded-lg border border-slate-200 px-4 py-3 flex items-center gap-3 hover:border-slate-300 cursor-pointer group"
+                >
+                  <div className="flex-1 min-w-0">
+                    {feature.short_id && (
+                      <span className="text-xs font-mono text-slate-400 block mb-0.5">{feature.short_id}</span>
+                    )}
+                    <span className="text-sm font-medium text-slate-800 group-hover:text-blue-600">{feature.title}</span>
+                    {feature.description && (
+                      <p className="text-xs text-slate-400 mt-0.5 truncate">{feature.description}</p>
+                    )}
+                  </div>
+                  <span className="text-xs text-slate-400 flex-shrink-0">{featureStories.length} stories</span>
                 </div>
               )
             })}

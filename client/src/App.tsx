@@ -10,9 +10,12 @@ import { BacklogView } from './views/BacklogView'
 import { EpicsView } from './views/EpicsView'
 import { EpicDetailView } from './views/EpicDetailView'
 import { StoryDetailView } from './views/StoryDetailView'
+import { FeatureDetailView } from './views/FeatureDetailView'
 import { TeamView } from './views/TeamView'
 import { AgentProfileView } from './views/AgentProfileView'
+import { DocsView } from './views/DocsView'
 import { CreateModal } from './components/CreateModal'
+import { RoadmapView } from './views/RoadmapView'
 
 // Layout wrapper that renders Sidebar + main content area
 function AppLayout({ onCreateClick }: { onCreateClick: () => void }) {
@@ -25,9 +28,12 @@ function AppLayout({ onCreateClick }: { onCreateClick: () => void }) {
           <Route path="/:projectKey/backlog" element={<ProjectRoutes view="backlog" />} />
           <Route path="/:projectKey/epics" element={<ProjectRoutes view="epics" />} />
           <Route path="/:projectKey/epics/:epicId" element={<ProjectRoutes view="epicDetail" />} />
+          <Route path="/:projectKey/roadmap" element={<ProjectRoutes view="roadmap" />} />
+          <Route path="/:projectKey/features/:featureId" element={<ProjectRoutes view="featureDetail" />} />
           <Route path="/:projectKey/stories/:storyId" element={<ProjectRoutes view="story" />} />
           <Route path="/team" element={<TeamView />} />
           <Route path="/team/:agentSlug" element={<AgentProfileView />} />
+          <Route path="/docs" element={<DocsView />} />
           <Route path="/" element={<Navigate to="/team" replace />} />
           <Route path="*" element={<WelcomeScreen />} />
         </Routes>
@@ -38,7 +44,7 @@ function AppLayout({ onCreateClick }: { onCreateClick: () => void }) {
 
 // Resolves projectKey -> projectId and renders the right view
 function ProjectRoutes({ view }: { view: string }) {
-  const { projectKey, epicId, storyId } = useParams<{ projectKey: string; epicId: string; storyId: string }>()
+  const { projectKey, epicId, storyId, featureId } = useParams<{ projectKey: string; epicId: string; storyId: string; featureId: string }>()
   const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: api.projects.list })
   const project = (projects as Project[]).find(p => p.key === projectKey)
 
@@ -55,6 +61,8 @@ function ProjectRoutes({ view }: { view: string }) {
   if (view === 'epics') return <EpicsView projectId={project.id} projectKey={project.key} />
   if (view === 'epicDetail') return <EpicDetailView epicId={epicId ?? ''} projectKey={project.key} />
   if (view === 'story') return <StoryDetailView storyId={storyId ?? ''} projectKey={project.key} />
+  if (view === 'featureDetail') return <FeatureDetailView featureId={featureId ?? ''} projectKey={projectKey ?? ''} />
+  if (view === 'roadmap') return <RoadmapView projectId={project.id} />
 
   return null
 }

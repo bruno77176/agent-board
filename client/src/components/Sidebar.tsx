@@ -1,8 +1,8 @@
-import { NavLink, useParams } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import type { Project } from '@/lib/api'
-import { LayoutDashboard, List, BookOpen, Users, Plus } from 'lucide-react'
+import { LayoutDashboard, List, BookOpen, Users, Plus, Map, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface SidebarProps {
@@ -10,9 +10,10 @@ interface SidebarProps {
 }
 
 export function Sidebar({ onCreateClick }: SidebarProps) {
-  const { projectKey } = useParams<{ projectKey: string }>()
+  const location = useLocation()
+  const firstSegment = location.pathname.split('/')[1] || ''
   const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: api.projects.list })
-  const project = (projects as Project[]).find(p => p.key === projectKey)
+  const project = (projects as Project[]).find(p => p.key === firstSegment)
 
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     cn(
@@ -39,7 +40,7 @@ export function Sidebar({ onCreateClick }: SidebarProps) {
             className={({ isActive }) =>
               cn(
                 'flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors mb-0.5',
-                isActive || p.key === projectKey
+                isActive || p.key === firstSegment
                   ? 'bg-slate-100 text-slate-900 font-medium'
                   : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
               )
@@ -68,6 +69,10 @@ export function Sidebar({ onCreateClick }: SidebarProps) {
               <BookOpen className="w-3.5 h-3.5" />
               Epics
             </NavLink>
+            <NavLink to={`/${project.key}/roadmap`} className={navLinkClass}>
+              <Map className="w-3.5 h-3.5" />
+              Roadmap
+            </NavLink>
           </div>
         </>
       )}
@@ -77,6 +82,10 @@ export function Sidebar({ onCreateClick }: SidebarProps) {
         <NavLink to="/team" className={navLinkClass}>
           <Users className="w-3.5 h-3.5" />
           Team
+        </NavLink>
+        <NavLink to="/docs" className={navLinkClass}>
+          <FileText className="w-3.5 h-3.5" />
+          Docs
         </NavLink>
       </div>
 
