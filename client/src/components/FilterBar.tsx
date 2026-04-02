@@ -1,13 +1,14 @@
 import type { Agent, Epic } from '@/lib/api'
 
 export interface Filters {
-  assignee: string   // agent id or ''
-  epic: string       // epic id or ''
-  priority: string   // 'low' | 'medium' | 'high' | 'critical' | ''
+  assignees: string[]
+  tags: string[]
+  priorities: string[]
+  epicId: string
   search: string
 }
 
-export const defaultFilters: Filters = { assignee: '', epic: '', priority: '', search: '' }
+export const defaultFilters: Filters = { assignees: [], tags: [], priorities: [], epicId: '', search: '' }
 
 interface Props {
   agents: Agent[]
@@ -17,36 +18,82 @@ interface Props {
 }
 
 export function FilterBar({ agents, epics, filters, onChange }: Props) {
-  const set = (patch: Partial<Filters>) => onChange({ ...filters, ...patch })
+  const hasFilters = filters.assignees.length > 0 || filters.priorities.length > 0 || filters.tags.length > 0 || filters.epicId || filters.search
   const selectCls = 'h-7 px-2 text-xs border border-slate-200 rounded bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-300'
+
+  const toggleAssignee = (id: string) => {
+    const next = filters.assignees.includes(id)
+      ? filters.assignees.filter(x => x !== id)
+      : [...filters.assignees, id]
+    onChange({ ...filters, assignees: next })
+  }
+
+  const togglePriority = (p: string) => {
+    const next = filters.priorities.includes(p)
+      ? filters.priorities.filter(x => x !== p)
+      : [...filters.priorities, p]
+    onChange({ ...filters, priorities: next })
+  }
 
   return (
     <div className="flex items-center gap-2 flex-1">
+      {/* Search */}
       <input
         type="search"
         placeholder="Search…"
         value={filters.search}
-        onChange={e => set({ search: e.target.value })}
-        className="h-7 px-2 text-xs border border-slate-200 rounded bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-300 w-44"
+        onChange={e => onChange({ ...filters, search: e.target.value })}
+        className="h-7 px-2 text-xs border border-slate-200 rounded bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-300 w-36"
       />
-      <select value={filters.assignee} onChange={e => set({ assignee: e.target.value })} className={selectCls}>
-        <option value="">Assignee</option>
-        {agents.map(a => <option key={a.id} value={a.id}>{a.avatar_emoji} {a.name}</option>)}
-      </select>
-      <select value={filters.epic} onChange={e => set({ epic: e.target.value })} className={selectCls}>
-        <option value="">Epic</option>
-        {epics.map(e => <option key={e.id} value={e.id}>{e.title}</option>)}
-      </select>
-      <select value={filters.priority} onChange={e => set({ priority: e.target.value })} className={selectCls}>
-        <option value="">Priority</option>
-        {['low', 'medium', 'high', 'critical'].map(p => (
-          <option key={p} value={p} className="capitalize">{p}</option>
+
+      {/* Assignee avatar pills (multi-select) */}
+      <div className="flex items-center gap-0.5">
+        {agents.map(a => (
+          <button
+            key={a.id}
+            title={a.name}
+            onClick={() => toggleAssignee(a.id)}
+            className={`w-7 h-7 rounded-full text-sm flex items-center justify-center border-2 transition-all ${
+              filters.assignees.includes(a.id)
+                ? 'border-blue-500 scale-110'
+                : 'border-transparent opacity-50 hover:opacity-100'
+            }`}
+            style={{ background: a.color + '22' }}
+          >
+            {a.avatar_emoji}
+          </button>
         ))}
-      </select>
-      {(filters.assignee || filters.epic || filters.priority || filters.search) && (
+      </div>
+
+      {/* Priority (multi-select via chips) */}
+      <div className="flex items-center gap-1">
+        {(['high', 'medium', 'low'] as const).map(p => (
+          <button
+            key={p}
+            onClick={() => togglePriority(p)}
+            className={`h-6 px-2 text-xs rounded-full border capitalize transition-colors ${
+              filters.priorities.includes(p)
+                ? 'bg-blue-600 border-blue-600 text-white'
+                : 'border-slate-200 text-slate-500 hover:border-slate-400'
+            }`}
+          >
+            {p}
+          </button>
+        ))}
+      </div>
+
+      {/* Epic filter */}
+      {epics.length > 0 && (
+        <select value={filters.epicId} onChange={e => onChange({ ...filters, epicId: e.target.value })} className={selectCls}>
+          <option value="">Epic</option>
+          {epics.map(e => <option key={e.id} value={e.id}>{e.title}</option>)}
+        </select>
+      )}
+
+      {hasFilters && (
         <button
           onClick={() => onChange(defaultFilters)}
-          className="h-7 px-2 text-xs text-slate-500 hover:text-slate-700 border border-slate-200 rounded bg-white"
+          className="h-7 px-2 text-xs text-slate-500 hover:text-slate-700 border border-slate-200 rounded bg-white ml-auto"
         >
           Clear
         </button>

@@ -1,97 +1,74 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '@/lib/api'
-import type { Story, Workflow, Project, Agent } from '@/lib/api'
+import type { Story, Agent, Epic } from '@/lib/api'
+import { FilterBar, defaultFilters } from '@/components/FilterBar'
+import type { Filters } from '@/components/FilterBar'
 
 interface Props { projectId: string }
-
-const PRIORITY_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 }
 
 export function BacklogView({ projectId }: Props) {
   const { projectKey } = useParams<{ projectKey: string }>()
   const navigate = useNavigate()
+  const [filters, setFilters] = useState<Filters>(defaultFilters)
 
   const { data: stories = [] } = useQuery({
     queryKey: ['stories', projectId],
     queryFn: () => api.stories.list(projectId),
     enabled: !!projectId,
   })
-
   const { data: agents = [] } = useQuery({ queryKey: ['agents'], queryFn: api.agents.list })
-  const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: api.projects.list })
-  const { data: workflows = [] } = useQuery({ queryKey: ['workflows'], queryFn: api.workflows.list })
-
-  const project = (projects as Project[]).find(p => p.id === projectId)
-  const workflow = (workflows as Workflow[]).find(w => w.id === project?.workflow_id)
+  const { data: epics = [] } = useQuery({
+    queryKey: ['epics', projectId],
+    queryFn: () => api.epics.list(projectId),
+    enabled: !!projectId,
+  })
 
   const typedAgents = agents as Agent[]
-  const typedStories = (stories as Story[]).slice().sort(
-    (a, b) => (PRIORITY_ORDER[a.priority] ?? 99) - (PRIORITY_ORDER[b.priority] ?? 99)
-  )
   const agentMap = Object.fromEntries(typedAgents.map(a => [a.id, a]))
 
+  // Only backlog stories
+  let backlogStories = (stories as Story[]).filter(s => s.status === 'backlog')
+
+  // Apply filters
+  if (filters.assignees.length > 0) backlogStories = backlogStories.filter(s => s.assigned_agent_id && filters.assignees.includes(s.assigned_agent_id))
+  if (filters.priorities.length > 0) backlogStories = backlogStories.filter(s => filters.priorities.includes(s.priority))
+  if (filters.tags.length > 0) backlogStories = backlogStories.filter(s => s.tags.some(t => filters.tags.includes(t)))
+  if (filters.search) {
+    const q = filters.search.toLowerCase()
+    backlogStories = backlogStories.filter(s => s.title.toLowerCase().includes(q) || (s.description ?? '').toLowerCase().includes(q))
+  }
+
   return (
-    <div className="h-full flex flex-col">
-      <div className="px-6 py-4 border-b border-slate-200 bg-white flex-shrink-0">
-        <h2 className="text-sm font-semibold text-slate-700">Backlog</h2>
-        <p className="text-xs text-slate-400 mt-0.5">{typedStories.length} stories</p>
+    <div className="flex flex-col h-full">
+      <div className="flex items-center gap-3 px-6 py-3 border-b border-slate-200 bg-white flex-shrink-0">
+        <span className="text-sm font-medium text-slate-600 flex-shrink-0">Backlog</span>
+        <FilterBar agents={typedAgents} epics={epics as Epic[]} filters={filters} onChange={setFilters} />
       </div>
-      <div className="flex-1 overflow-y-auto px-6 pt-4">
-        <table className="w-full text-sm border-collapse">
-          <thead>
-            <tr className="border-b text-xs text-slate-500 uppercase tracking-wide">
-              <th className="text-left pb-3 font-semibold">Title</th>
-              <th className="text-left pb-3 font-semibold">Status</th>
-              <th className="text-left pb-3 font-semibold">Priority</th>
-              <th className="text-left pb-3 font-semibold">Agent</th>
-            </tr>
-          </thead>
-          <tbody>
-            {typedStories.map(s => {
-              const agent = s.assigned_agent_id ? agentMap[s.assigned_agent_id] : null
-              const state = workflow?.states.find(st => st.id === s.status)
-              return (
-                <tr
-                  key={s.id}
-                  className="border-b hover:bg-slate-50 cursor-pointer"
-                  onClick={() => navigate(`/${projectKey ?? ''}/stories/${s.id}`)}
-                >
-                  <td className="py-2.5 font-medium text-slate-800">{s.title}</td>
-                  <td className="py-2.5">
-                    <span className="inline-flex items-center gap-1.5 text-xs">
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: state?.color }} />
-                      {state?.label ?? s.status}
-                    </span>
-                  </td>
-                  <td className="py-2.5">
-                    <PriorityBadge priority={s.priority} />
-                  </td>
-                  <td className="py-2.5 text-xs text-slate-500">
-                    {agent ? `${agent.avatar_emoji} ${agent.name}` : '—'}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-        {typedStories.length === 0 && (
-          <div className="py-12 text-center text-slate-400 text-sm">No stories in backlog</div>
-        )}
+
+      <div className="flex-1 overflow-y-auto p-6">
+        <div className="max-w-3xl space-y-1">
+          <p className="text-xs text-slate-400 mb-3">{backlogStories.length} items</p>
+          {backlogStories.map(s => {
+            const agent = s.assigned_agent_id ? agentMap[s.assigned_agent_id] : null
+            return (
+              <div key={s.id}
+                onClick={() => navigate(`/${projectKey}/stories/${s.id}`)}
+                className="flex items-center gap-3 p-3 bg-white border rounded-lg hover:border-slate-300 cursor-pointer text-sm group">
+                <span className="flex-1 text-slate-800 font-medium group-hover:text-blue-600">{s.title}</span>
+                <span className={`text-xs px-2 py-0.5 rounded-full border capitalize ${
+                  s.priority === 'high' ? 'border-red-200 text-red-600' :
+                  s.priority === 'medium' ? 'border-amber-200 text-amber-600' :
+                  'border-slate-200 text-slate-400'
+                }`}>{s.priority}</span>
+                {agent && <span title={agent.name}>{agent.avatar_emoji}</span>}
+              </div>
+            )
+          })}
+          {backlogStories.length === 0 && <p className="text-sm text-slate-400 text-center py-8">Backlog is empty.</p>}
+        </div>
       </div>
     </div>
-  )
-}
-
-function PriorityBadge({ priority }: { priority: string }) {
-  const colors: Record<string, string> = {
-    critical: 'bg-red-100 text-red-700',
-    high: 'bg-orange-100 text-orange-700',
-    medium: 'bg-yellow-100 text-yellow-700',
-    low: 'bg-slate-100 text-slate-600',
-  }
-  return (
-    <span className={`inline-block px-1.5 py-0.5 rounded text-xs font-medium capitalize ${colors[priority] ?? 'bg-slate-100 text-slate-600'}`}>
-      {priority}
-    </span>
   )
 }

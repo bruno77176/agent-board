@@ -46,8 +46,9 @@ export function BoardView({ projectId }: Props) {
 
   // Apply filters
   const filteredStories = typedStories.filter(s => {
-    if (filters.assignee && s.assigned_agent_id !== filters.assignee) return false
-    if (filters.priority && s.priority !== filters.priority) return false
+    if (filters.assignees.length > 0 && (!s.assigned_agent_id || !filters.assignees.includes(s.assigned_agent_id))) return false
+    if (filters.priorities.length > 0 && !filters.priorities.includes(s.priority)) return false
+    if (filters.tags.length > 0 && !s.tags.some(t => filters.tags.includes(t))) return false
     if (filters.search) {
       const q = filters.search.toLowerCase()
       if (!s.title.toLowerCase().includes(q) && !(s.description ?? '').toLowerCase().includes(q)) return false
