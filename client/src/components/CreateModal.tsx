@@ -61,9 +61,9 @@ export function CreateModal({ onClose }: Props) {
       title,
       description: description || undefined,
       priority,
-      estimated_minutes: estimatedMinutes ? parseInt(estimatedMinutes) : undefined,
+      estimated_minutes: estimatedMinutes ? Math.max(1, parseInt(estimatedMinutes)) : undefined,
     }),
-    onSuccess: (story) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stories', projectId] })
       queryClient.invalidateQueries({ queryKey: ['stories'] })
       onClose()

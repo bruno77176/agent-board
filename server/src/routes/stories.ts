@@ -68,19 +68,21 @@ export function storiesRouter(db: Database.Database, broadcast: Broadcast): Rout
   })
 
   router.patch('/:id', (req, res) => {
-    const { title, description, priority, tags, git_branch, assigned_agent_id, acceptance_criteria } = req.body
+    const { title, description, priority, estimated_minutes, tags, git_branch, assigned_agent_id, acceptance_criteria } = req.body
     const story = db.prepare('SELECT * FROM stories WHERE id = ?').get(req.params.id) as any
     if (!story) return res.status(404).json({ error: 'Not found' })
     db.prepare(`UPDATE stories SET
       title = COALESCE(?, title),
       description = COALESCE(?, description),
       priority = COALESCE(?, priority),
+      estimated_minutes = COALESCE(?, estimated_minutes),
       tags = COALESCE(?, tags),
       git_branch = COALESCE(?, git_branch),
       assigned_agent_id = COALESCE(?, assigned_agent_id),
       acceptance_criteria = COALESCE(?, acceptance_criteria)
       WHERE id = ?`).run(
         title ?? null, description ?? null, priority ?? null,
+        estimated_minutes ?? null,
         tags ? JSON.stringify(tags) : null, git_branch ?? null,
         assigned_agent_id ?? null,
         acceptance_criteria ? JSON.stringify(acceptance_criteria) : null,
