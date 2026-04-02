@@ -41,7 +41,7 @@ export function storiesRouter(db: Database.Database, broadcast: Broadcast): Rout
       .run(id, feature_id, parent_story_id ?? null, title, description ?? null,
            priority ?? 'medium', JSON.stringify(tags ?? []), estimated_minutes ?? null)
     const story = db.prepare('SELECT * FROM stories WHERE id = ?').get(id) as any
-    const result = { ...story, tags: JSON.parse(story.tags) }
+    const result = { ...story, tags: JSON.parse(story.tags ?? '[]'), acceptance_criteria: JSON.parse(story.acceptance_criteria ?? '[]') }
     broadcast({ type: 'story.created', data: result })
     res.status(201).json(result)
   })
@@ -62,7 +62,7 @@ export function storiesRouter(db: Database.Database, broadcast: Broadcast): Rout
     db.prepare('INSERT INTO events (id, target_type, target_id, agent_id, from_status, to_status, comment) VALUES (?, ?, ?, ?, ?, ?, ?)')
       .run(randomUUID(), 'story', story.id, resolvedAgentId, story.status, status, comment ?? null)
     const updated = db.prepare('SELECT * FROM stories WHERE id = ?').get(story.id) as any
-    const result = { ...updated, tags: JSON.parse(updated.tags) }
+    const result = { ...updated, tags: JSON.parse(updated.tags ?? '[]'), acceptance_criteria: JSON.parse(updated.acceptance_criteria ?? '[]') }
     broadcast({ type: 'story.status_changed', data: result })
     res.json(result)
   })
