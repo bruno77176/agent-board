@@ -1,3 +1,4 @@
+import { useDraggable } from '@dnd-kit/core'
 import type { Story, Agent } from '@/lib/api'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -13,14 +14,32 @@ interface Props {
   story: Story
   agent?: Agent
   onClick?: () => void
+  hasBlockers?: boolean
 }
 
-export function StoryCard({ story, agent, onClick }: Props) {
+export function StoryCard({ story, agent, onClick, hasBlockers }: Props) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: story.id,
+    data: { story },
+  })
+  const style = transform ? {
+    transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : undefined,
+  } : undefined
+
   return (
     <div
+      ref={setNodeRef}
+      style={style}
       onClick={onClick}
+      {...listeners}
+      {...attributes}
       className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm hover:shadow-md hover:border-slate-300 cursor-pointer transition-all"
     >
+      {story.short_id && (
+        <p className="text-[10px] font-mono text-slate-400 mb-1">{story.short_id}</p>
+      )}
       <p className="text-sm text-slate-800 font-medium leading-snug mb-2">{story.title}</p>
       {story.tags.length > 0 && (
         <div className="flex items-center gap-1 flex-wrap mb-2">
@@ -30,9 +49,14 @@ export function StoryCard({ story, agent, onClick }: Props) {
         </div>
       )}
       <div className="flex items-center justify-between mt-1">
-        <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${PRIORITY_COLOR[story.priority] ?? ''}`}>
-          {story.priority}
-        </span>
+        <div className="flex items-center gap-1">
+          <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${PRIORITY_COLOR[story.priority] ?? ''}`}>
+            {story.priority}
+          </span>
+          {hasBlockers && (
+            <span title="Has blockers" className="text-[10px] text-red-500">⛔</span>
+          )}
+        </div>
         <div className="flex items-center gap-1.5">
           {story.git_branch && (
             <span className="flex items-center gap-0.5 text-[10px] text-slate-400 font-mono">

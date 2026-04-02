@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { DndContext, closestCenter } from '@dnd-kit/core'
+import type { DragEndEvent } from '@dnd-kit/core'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '@/lib/api'
 import type { Story, Workflow, Project, Agent, Epic } from '@/lib/api'
@@ -8,14 +10,17 @@ import { FilterBar, defaultFilters } from '@/components/FilterBar'
 import type { Filters } from '@/components/FilterBar'
 
 type View = 'board' | 'list'
+type Swimlane = 'none' | 'epic' | 'assignee' | 'priority'
 
 interface Props { projectId: string }
 
 export function BoardView({ projectId }: Props) {
   const { projectKey } = useParams<{ projectKey: string }>()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [view, setView] = useState<View>('board')
   const [filters, setFilters] = useState<Filters>(defaultFilters)
+  const [_swimlane, _setSwimlane] = useState<Swimlane>('none')
 
   const { data: stories = [] } = useQuery({
     queryKey: ['stories', projectId],
@@ -30,6 +35,22 @@ export function BoardView({ projectId }: Props) {
     queryKey: ['epics', projectId],
     queryFn: () => api.epics.list(projectId),
     enabled: !!projectId,
+  })
+
+  const moveMutation = useMutation({
+    mutationFn: ({ storyId, status }: { storyId: string; status: string }) =>
+      api.stories.moveStatus(storyId, status),
+    onMutate: async ({ storyId, status }) => {
+      await queryClient.cancelQueries({ queryKey: ['stories', projectId] })
+      const prev = queryClient.getQueryData(['stories', projectId])
+      queryClient.setQueryData(['stories', projectId], (old: any[]) =>
+        old?.map(s => s.id === storyId ? { ...s, status } : s) ?? old
+      )
+      return { prev }
+    },
+    onError: (_err, _vars, ctx) => {
+      queryClient.setQueryData(['stories', projectId], ctx?.prev)
+    },
   })
 
   const project = (projects as Project[]).find(p => p.id === projectId)
@@ -51,13 +72,21 @@ export function BoardView({ projectId }: Props) {
     if (filters.tags.length > 0 && !s.tags.some(t => filters.tags.includes(t))) return false
     if (filters.search) {
       const q = filters.search.toLowerCase()
-      if (!s.title.toLowerCase().includes(q) && !(s.description ?? '').toLowerCase().includes(q)) return false
+      if (!s.title.toLowerCase().includes(q) && !(s.description ?? '').toLowerCase().includes(q) && !(s.short_id ?? '').toLowerCase().includes(q)) return false
     }
     return true
   })
 
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const story = typedStories.find(s => s.id === active.id)
+    if (!story || story.status === over.id) return
+    moveMutation.mutate({ storyId: story.id as string, status: over.id as string })
+  }
+
   const handleStoryClick = (story: Story) => {
-    navigate(`/${projectKey ?? ''}/stories/${story.id}`)
+    navigate(`/${projectKey ?? ''}/stories/${story.short_id ?? story.id}`)
   }
 
   const toolbar = (
@@ -81,17 +110,19 @@ export function BoardView({ projectId }: Props) {
       <div className="h-full flex flex-col">
         {toolbar}
         <div className="flex-1 overflow-x-auto">
-          <div className="flex gap-5 p-6 h-full min-w-max items-start">
-            {workflow.states.map(state => (
-              <KanbanColumn
-                key={state.id}
-                state={state}
-                stories={filteredStories.filter(s => s.status === state.id)}
-                agents={typedAgents}
-                onCardClick={handleStoryClick}
-              />
-            ))}
-          </div>
+          <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <div className="flex gap-5 p-6 h-full min-w-max items-start">
+              {workflow.states.map(state => (
+                <KanbanColumn
+                  key={state.id}
+                  state={state}
+                  stories={filteredStories.filter(s => s.status === state.id)}
+                  agents={typedAgents}
+                  onCardClick={handleStoryClick}
+                />
+              ))}
+            </div>
+          </DndContext>
         </div>
       </div>
     )
@@ -118,7 +149,10 @@ export function BoardView({ projectId }: Props) {
               return (
                 <tr key={s.id} className="border-b hover:bg-slate-50 cursor-pointer"
                   onClick={() => handleStoryClick(s)}>
-                  <td className="py-2.5 font-medium text-slate-800">{s.title}</td>
+                  <td className="py-2.5">
+                    {s.short_id && <span className="text-[10px] font-mono text-slate-400 mr-2">{s.short_id}</span>}
+                    <span className="font-medium text-slate-800">{s.title}</span>
+                  </td>
                   <td className="py-2.5">
                     <span className="inline-flex items-center gap-1.5 text-xs">
                       <span className="w-1.5 h-1.5 rounded-full" style={{ background: state?.color }} />

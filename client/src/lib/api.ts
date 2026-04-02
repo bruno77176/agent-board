@@ -27,18 +27,30 @@ export const api = {
     list: (project_id: string) => request<Epic[]>(`/epics?project_id=${project_id}`),
     get: (id: string) => request<Epic>(`/epics/${id}`),
     create: (data: Partial<Epic>) => request<Epic>('/epics', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: Partial<Epic>) =>
+      request<Epic>(`/epics/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   },
   features: {
     list: (epic_id: string) => request<Feature[]>(`/features?epic_id=${epic_id}`),
+    listAll: () => request<Feature[]>('/features'),
+    get: (id: string) => request<Feature>(`/features/${id}`),
     create: (data: Partial<Feature>) => request<Feature>('/features', { method: 'POST', body: JSON.stringify(data) }),
   },
   stories: {
     list: (project_id: string) => request<Story[]>(`/stories?project_id=${project_id}`),
+    listByFeature: (feature_id: string) => request<Story[]>(`/stories?feature_id=${feature_id}`),
     get: (id: string) => request<Story>(`/stories/${id}`),
     create: (data: Partial<Story>) => request<Story>('/stories', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: Partial<Story>) => request<Story>(`/stories/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     moveStatus: (id: string, status: string, agent_id?: string, comment?: string) =>
       request<Story>(`/stories/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status, agent_id, comment }) }),
+    links: {
+      list: (story_id: string) => request<StoryLink[]>(`/stories/${story_id}/links`),
+      create: (story_id: string, data: { to_story_id: string; link_type: string }) =>
+        request<StoryLink>(`/stories/${story_id}/links`, { method: 'POST', body: JSON.stringify(data) }),
+      delete: (story_id: string, link_id: string) =>
+        request<void>(`/stories/${story_id}/links/${link_id}`, { method: 'DELETE' }),
+    },
   },
   events: {
     list: (target_id: string, target_type?: string) =>
@@ -54,7 +66,14 @@ export interface AcceptanceCriterion { id: string; text: string; checked: boolea
 export interface WorkflowState { id: string; label: string; color: string }
 export interface WorkflowTransition { from: string; to: string; label: string }
 export interface Workflow { id: string; name: string; states: WorkflowState[]; transitions: WorkflowTransition[] }
-export interface Epic { id: string; project_id: string; title: string; description?: string; version?: string; status: string; created_at: string }
-export interface Feature { id: string; epic_id: string; title: string; description?: string; tags: string[]; created_at: string }
-export interface Story { id: string; feature_id: string; parent_story_id?: string; title: string; description?: string; status: string; priority: string; assigned_agent_id?: string; tags: string[]; acceptance_criteria: AcceptanceCriterion[]; estimated_minutes?: number; git_branch?: string; events?: BoardEvent[]; created_at: string }
+export interface Epic { id: string; project_id: string; title: string; description?: string; version?: string; status: string; created_at: string; short_id?: string }
+export interface Feature { id: string; epic_id: string; title: string; description?: string; tags: string[]; created_at: string; short_id?: string }
+export interface StoryLink {
+  id: string
+  from_story_id: string
+  to_story_id: string
+  link_type: 'blocks' | 'duplicates' | 'relates_to'
+  created_at: string
+}
+export interface Story { id: string; feature_id: string; parent_story_id?: string; title: string; description?: string; status: string; priority: string; assigned_agent_id?: string; tags: string[]; acceptance_criteria: AcceptanceCriterion[]; estimated_minutes?: number; git_branch?: string; events?: BoardEvent[]; links?: StoryLink[]; created_at: string; short_id?: string }
 export interface BoardEvent { id: string; target_type: string; target_id: string; agent_id?: string; from_status?: string; to_status?: string; comment?: string; created_at: string }
