@@ -22,9 +22,15 @@ export function eventsRouter(db: Database.Database, broadcast: Broadcast): Route
   router.post('/', (req, res) => {
     const { target_type, target_id, agent_id, comment, from_status, to_status } = req.body
     if (!target_id || !comment) return res.status(400).json({ error: 'target_id and comment required' })
+    // Resolve agent slug → UUID if needed
+    let resolvedAgentId = agent_id ?? null
+    if (resolvedAgentId) {
+      const bySlug = db.prepare('SELECT id FROM agents WHERE slug = ?').get(resolvedAgentId) as any
+      if (bySlug) resolvedAgentId = bySlug.id
+    }
     const id = randomUUID()
     db.prepare('INSERT INTO events (id, target_type, target_id, agent_id, from_status, to_status, comment) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .run(id, target_type ?? 'story', target_id, agent_id ?? null, from_status ?? null, to_status ?? null, comment)
+      .run(id, target_type ?? 'story', target_id, resolvedAgentId, from_status ?? null, to_status ?? null, comment)
     const event = db.prepare('SELECT * FROM events WHERE id = ?').get(id)
     broadcast({ type: 'event.created', data: event })
     res.status(201).json(event)

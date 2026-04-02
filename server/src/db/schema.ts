@@ -69,3 +69,8 @@ export const SCHEMA = `
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 `;
+
+export const MIGRATIONS = [
+  `ALTER TABLE stories ADD COLUMN acceptance_criteria TEXT NOT NULL DEFAULT '[]'`,
+  `ALTER TABLE agents ADD COLUMN skills TEXT NOT NULL DEFAULT '[]'`,
+]

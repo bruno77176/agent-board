@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3'
-import { SCHEMA } from './schema.js'
+import { SCHEMA, MIGRATIONS } from './schema.js'
 import path from 'path'
 
 let db: Database.Database | null = null
@@ -11,6 +11,13 @@ export function getDb(dbPath?: string): Database.Database {
   db.pragma('journal_mode = WAL')
   db.pragma('foreign_keys = ON')
   db.exec(SCHEMA)
+  for (const migration of MIGRATIONS) {
+    try {
+      db.exec(migration)
+    } catch (e: any) {
+      if (!e.message?.includes('duplicate column name')) throw e
+    }
+  }
   return db
 }
 

@@ -22,14 +22,14 @@ export function storiesRouter(db: Database.Database, broadcast: Broadcast): Rout
     } else {
       rows = db.prepare('SELECT * FROM stories ORDER BY created_at DESC').all()
     }
-    res.json(rows.map((r: any) => ({ ...r, tags: JSON.parse(r.tags) })))
+    res.json(rows.map((r: any) => ({ ...r, tags: JSON.parse(r.tags ?? '[]'), acceptance_criteria: JSON.parse(r.acceptance_criteria ?? '[]') })))
   })
 
   router.get('/:id', (req, res) => {
     const story = db.prepare('SELECT * FROM stories WHERE id = ?').get(req.params.id) as any
     if (!story) return res.status(404).json({ error: 'Not found' })
     const events = db.prepare("SELECT * FROM events WHERE target_id = ? AND target_type = 'story' ORDER BY created_at").all(story.id)
-    res.json({ ...story, tags: JSON.parse(story.tags), events })
+    res.json({ ...story, tags: JSON.parse(story.tags ?? '[]'), acceptance_criteria: JSON.parse(story.acceptance_criteria ?? '[]'), events })
   })
 
   router.post('/', (req, res) => {
@@ -51,10 +51,16 @@ export function storiesRouter(db: Database.Database, broadcast: Broadcast): Rout
     if (!status) return res.status(400).json({ error: 'status required' })
     const story = db.prepare('SELECT * FROM stories WHERE id = ?').get(req.params.id) as any
     if (!story) return res.status(404).json({ error: 'Not found' })
+    // Resolve agent slug → UUID if needed
+    let resolvedAgentId = agent_id ?? null
+    if (resolvedAgentId) {
+      const bySlug = db.prepare('SELECT id FROM agents WHERE slug = ?').get(resolvedAgentId) as any
+      if (bySlug) resolvedAgentId = bySlug.id
+    }
     db.prepare('UPDATE stories SET status = ?, assigned_agent_id = COALESCE(?, assigned_agent_id) WHERE id = ?')
-      .run(status, agent_id ?? null, story.id)
+      .run(status, resolvedAgentId, story.id)
     db.prepare('INSERT INTO events (id, target_type, target_id, agent_id, from_status, to_status, comment) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .run(randomUUID(), 'story', story.id, agent_id ?? null, story.status, status, comment ?? null)
+      .run(randomUUID(), 'story', story.id, resolvedAgentId, story.status, status, comment ?? null)
     const updated = db.prepare('SELECT * FROM stories WHERE id = ?').get(story.id) as any
     const result = { ...updated, tags: JSON.parse(updated.tags) }
     broadcast({ type: 'story.status_changed', data: result })
@@ -62,7 +68,7 @@ export function storiesRouter(db: Database.Database, broadcast: Broadcast): Rout
   })
 
   router.patch('/:id', (req, res) => {
-    const { title, description, priority, tags, git_branch, assigned_agent_id } = req.body
+    const { title, description, priority, tags, git_branch, assigned_agent_id, acceptance_criteria } = req.body
     const story = db.prepare('SELECT * FROM stories WHERE id = ?').get(req.params.id) as any
     if (!story) return res.status(404).json({ error: 'Not found' })
     db.prepare(`UPDATE stories SET
@@ -71,14 +77,17 @@ export function storiesRouter(db: Database.Database, broadcast: Broadcast): Rout
       priority = COALESCE(?, priority),
       tags = COALESCE(?, tags),
       git_branch = COALESCE(?, git_branch),
-      assigned_agent_id = COALESCE(?, assigned_agent_id)
+      assigned_agent_id = COALESCE(?, assigned_agent_id),
+      acceptance_criteria = COALESCE(?, acceptance_criteria)
       WHERE id = ?`).run(
         title ?? null, description ?? null, priority ?? null,
         tags ? JSON.stringify(tags) : null, git_branch ?? null,
-        assigned_agent_id ?? null, story.id
+        assigned_agent_id ?? null,
+        acceptance_criteria ? JSON.stringify(acceptance_criteria) : null,
+        story.id
     )
     const updated = db.prepare('SELECT * FROM stories WHERE id = ?').get(story.id) as any
-    const result = { ...updated, tags: JSON.parse(updated.tags) }
+    const result = { ...updated, tags: JSON.parse(updated.tags ?? '[]'), acceptance_criteria: JSON.parse(updated.acceptance_criteria ?? '[]') }
     broadcast({ type: 'story.updated', data: result })
     res.json(result)
   })

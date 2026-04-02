@@ -14,6 +14,12 @@ export function epicsRouter(db: Database.Database, broadcast: Broadcast): Router
     res.json(rows)
   })
 
+  router.get('/:id', (req, res) => {
+    const epic = db.prepare('SELECT * FROM epics WHERE id = ?').get(req.params.id) as any
+    if (!epic) return res.status(404).json({ error: 'Not found' })
+    res.json(epic)
+  })
+
   router.post('/', (req, res) => {
     const { project_id, title, description, version } = req.body
     if (!project_id || !title) return res.status(400).json({ error: 'project_id and title required' })

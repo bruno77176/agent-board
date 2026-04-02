@@ -77,14 +77,14 @@ const WORKFLOWS = [
 ]
 
 const AGENTS = [
-  { slug: 'arch-lee', name: 'Arch Lee', scope: 'Architecture & planning', color: '#6366f1', avatar_emoji: '🏛️' },
-  { slug: 'tess-ter', name: 'Tess Ter', scope: 'Testing & QA', color: '#10b981', avatar_emoji: '🧪' },
-  { slug: 'deb-ugg', name: 'Deb Ugg', scope: 'Debugging', color: '#f59e0b', avatar_emoji: '🐛' },
-  { slug: 'rev-yu', name: 'Rev Yu', scope: 'Code review', color: '#3b82f6', avatar_emoji: '🔍' },
-  { slug: 'dee-ploy', name: 'Dee Ploy', scope: 'Deployment & merge', color: '#8b5cf6', avatar_emoji: '🚀' },
-  { slug: 'dev-in', name: 'Dev In', scope: 'Backend implementation', color: '#64748b', avatar_emoji: '⚙️' },
-  { slug: 'fron-tina', name: 'Fron Tina', scope: 'Frontend implementation', color: '#ec4899', avatar_emoji: '🎨' },
-  { slug: 'doc-tor', name: 'Doc Tor', scope: 'Documentation', color: '#0ea5e9', avatar_emoji: '📝' },
+  { slug: 'arch-lee', name: 'Arch Lee', scope: 'Architecture & planning', color: '#6366f1', avatar_emoji: '🏛️', skills: ['system-design', 'planning', 'diagramming', 'documentation'] },
+  { slug: 'tess-ter', name: 'Tess Ter', scope: 'Testing & QA', color: '#10b981', avatar_emoji: '🧪', skills: ['unit-testing', 'integration-testing', 'e2e-testing', 'test-planning'] },
+  { slug: 'deb-ugg', name: 'Deb Ugg', scope: 'Debugging', color: '#f59e0b', avatar_emoji: '🐛', skills: ['debugging', 'profiling', 'root-cause-analysis', 'logging'] },
+  { slug: 'rev-yu', name: 'Rev Yu', scope: 'Code review', color: '#3b82f6', avatar_emoji: '🔍', skills: ['code-review', 'static-analysis', 'security-audit', 'best-practices'] },
+  { slug: 'dee-ploy', name: 'Dee Ploy', scope: 'Deployment & merge', color: '#8b5cf6', avatar_emoji: '🚀', skills: ['ci-cd', 'docker', 'kubernetes', 'git-merge'] },
+  { slug: 'dev-in', name: 'Dev In', scope: 'Backend implementation', color: '#64748b', avatar_emoji: '⚙️', skills: ['nodejs', 'typescript', 'sql', 'rest-api'] },
+  { slug: 'fron-tina', name: 'Fron Tina', scope: 'Frontend implementation', color: '#ec4899', avatar_emoji: '🎨', skills: ['react', 'typescript', 'css', 'accessibility'] },
+  { slug: 'doc-tor', name: 'Doc Tor', scope: 'Documentation', color: '#0ea5e9', avatar_emoji: '📝', skills: ['technical-writing', 'api-docs', 'changelogs', 'readme'] },
 ]
 
 export function seed(db: Database.Database): void {
@@ -96,9 +96,13 @@ export function seed(db: Database.Database): void {
   }
 
   const insertAgent = db.prepare(
-    'INSERT OR IGNORE INTO agents (id, slug, name, scope, color, avatar_emoji) VALUES (?, ?, ?, ?, ?, ?)'
+    'INSERT OR IGNORE INTO agents (id, slug, name, scope, color, avatar_emoji, skills) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  )
+  const updateAgentSkills = db.prepare(
+    'UPDATE agents SET skills = ? WHERE slug = ?'
   )
   for (const a of AGENTS) {
-    insertAgent.run(randomUUID(), a.slug, a.name, a.scope, a.color, a.avatar_emoji)
+    insertAgent.run(randomUUID(), a.slug, a.name, a.scope, a.color, a.avatar_emoji, JSON.stringify(a.skills))
+    updateAgentSkills.run(JSON.stringify(a.skills), a.slug)
   }
 }
