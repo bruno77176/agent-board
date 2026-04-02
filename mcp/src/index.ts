@@ -249,7 +249,7 @@ server.tool(
   },
   async ({ story_id, ...updates }) => {
     const story = await board.updateStory(story_id, updates)
-    return { content: [{ type: 'text' as const, text: `Story "${story.title}" updated` }] }
+    return { content: [{ type: 'text' as const, text: JSON.stringify(story, null, 2) }] }
   }
 )
 
