@@ -13,6 +13,7 @@ function LinkedIssuesSection({ storyId, links, projectId }: { storyId: string; l
   const [showAdd, setShowAdd] = useState(false)
   const [search, setSearch] = useState('')
   const [linkType, setLinkType] = useState<'blocks' | 'duplicates' | 'relates_to'>('blocks')
+  const [linkError, setLinkError] = useState<string | null>(null)
 
   const { data: allStories = [] } = useQuery({
     queryKey: ['stories', projectId],
@@ -24,15 +25,27 @@ function LinkedIssuesSection({ storyId, links, projectId }: { storyId: string; l
     mutationFn: (data: { to_story_id: string; link_type: string }) =>
       api.stories.links.create(storyId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['story'] })
+      setLinkError(null)
       setShowAdd(false)
       setSearch('')
+      queryClient.invalidateQueries({ queryKey: ['story', storyId] })
+      queryClient.invalidateQueries({ queryKey: ['stories'] })
+    },
+    onError: (err: Error) => {
+      setLinkError(err.message || 'Failed to add link')
     },
   })
 
   const deleteLink = useMutation({
     mutationFn: (link_id: string) => api.stories.links.delete(storyId, link_id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['story'] }),
+    onSuccess: () => {
+      setLinkError(null)
+      queryClient.invalidateQueries({ queryKey: ['story', storyId] })
+      queryClient.invalidateQueries({ queryKey: ['stories'] })
+    },
+    onError: (err: Error) => {
+      setLinkError(err.message || 'Failed to remove link')
+    },
   })
 
   const grouped = {
@@ -81,6 +94,10 @@ function LinkedIssuesSection({ storyId, links, projectId }: { storyId: string; l
             </div>
           )}
         </div>
+      )}
+
+      {linkError && (
+        <p className="text-xs text-red-500 mt-1">{linkError}</p>
       )}
 
       {Object.entries(grouped).map(([label, groupLinks]) =>
@@ -138,9 +155,9 @@ export function StoryDetailView({ storyId: propStoryId, projectKey: propKey }: P
     enabled: !!typedStoryForFeature?.feature_id,
   })
   const { data: epic } = useQuery({
-    queryKey: ['epic', (feature as any)?.epic_id],
-    queryFn: () => api.epics.get((feature as any).epic_id),
-    enabled: !!(feature as any)?.epic_id,
+    queryKey: ['epic', feature?.epic_id],
+    queryFn: () => api.epics.get(feature!.epic_id),
+    enabled: !!feature?.epic_id,
   })
 
   const [editTitle, setEditTitle] = useState('')
@@ -184,19 +201,19 @@ export function StoryDetailView({ storyId: propStoryId, projectKey: propKey }: P
           <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-2">
             {epic && (
               <button
-                onClick={() => navigate(`/${projectKey}/epics/${(epic as any).id}`)}
+                onClick={() => navigate(`/${projectKey}/epics/${epic.id}`)}
                 className="font-medium text-slate-500 hover:text-blue-600"
               >
-                {(epic as any).title}
+                {epic.title}
               </button>
             )}
             {epic && feature && <span>›</span>}
             {feature && (
               <button
-                onClick={() => navigate(`/${projectKey}/features/${(feature as any).short_id ?? (feature as any).id}`)}
+                onClick={() => navigate(`/${projectKey}/features/${feature.short_id ?? feature.id}`)}
                 className="hover:text-blue-600"
               >
-                {(feature as any).title}
+                {feature.title}
               </button>
             )}
           </div>
