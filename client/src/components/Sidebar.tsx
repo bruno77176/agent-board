@@ -2,7 +2,7 @@ import { NavLink, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import type { Project } from '@/lib/api'
-import { LayoutDashboard, List, BookOpen, Layers, Users, Plus } from 'lucide-react'
+import { LayoutDashboard, List, BookOpen, Users, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface SidebarProps {
@@ -67,10 +67,6 @@ export function Sidebar({ onCreateClick }: SidebarProps) {
             <NavLink to={`/${project.key}/epics`} className={navLinkClass}>
               <BookOpen className="w-3.5 h-3.5" />
               Epics
-            </NavLink>
-            <NavLink to={`/${project.key}/features`} className={navLinkClass}>
-              <Layers className="w-3.5 h-3.5" />
-              Features
             </NavLink>
           </div>
         </>
