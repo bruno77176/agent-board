@@ -231,6 +231,28 @@ server.tool(
   }
 )
 
+server.tool(
+  'update_story',
+  'Update story fields: title, description, priority, estimated_minutes, tags, acceptance_criteria',
+  {
+    story_id: z.string(),
+    title: z.string().optional(),
+    description: z.string().optional(),
+    priority: z.enum(['high', 'medium', 'low']).optional(),
+    estimated_minutes: z.number().optional(),
+    tags: z.array(z.string()).optional(),
+    acceptance_criteria: z.array(z.object({
+      id: z.string(),
+      text: z.string(),
+      checked: z.boolean(),
+    })).optional().describe('Full acceptance criteria list with checked state'),
+  },
+  async ({ story_id, ...updates }) => {
+    const story = await board.updateStory(story_id, updates)
+    return { content: [{ type: 'text' as const, text: `Story "${story.title}" updated` }] }
+  }
+)
+
 // ── Start ─────────────────────────────────────────────────────────
 
 const transport = new StdioServerTransport()
