@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '@/lib/api'
 import type { Story, Workflow, Project, Agent } from '@/lib/api'
 import { KanbanColumn } from '@/components/KanbanColumn'
@@ -11,6 +11,7 @@ interface Props { projectId: string }
 
 export function BoardView({ projectId }: Props) {
   const { projectKey } = useParams<{ projectKey: string }>()
+  const navigate = useNavigate()
   const [view, setView] = useState<View>('board')
 
   const { data: stories = [] } = useQuery({
@@ -35,9 +36,7 @@ export function BoardView({ projectId }: Props) {
   const agentMap = Object.fromEntries(typedAgents.map(a => [a.id, a]))
 
   const handleStoryClick = (story: Story) => {
-    // Navigate to story detail — Task 12 will implement the full view
-    window.history.pushState(null, '', `/${projectKey ?? ''}/stories/${story.id}`)
-    window.dispatchEvent(new PopStateEvent('popstate'))
+    navigate(`/${projectKey ?? ''}/stories/${story.id}`)
   }
 
   if (view === 'board') {
