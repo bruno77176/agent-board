@@ -50,7 +50,7 @@ export const api = {
 
 export interface Project { id: string; key: string; name: string; description?: string; workflow_id: string; created_at: string }
 export interface Agent { id: string; slug: string; name: string; scope?: string; color: string; avatar_emoji: string; skills: string[] }
-export interface AcceptanceCriterion { id: string; text: string; done: boolean }
+export interface AcceptanceCriterion { id: string; text: string; checked: boolean }
 export interface WorkflowState { id: string; label: string; color: string }
 export interface WorkflowTransition { from: string; to: string; label: string }
 export interface Workflow { id: string; name: string; states: WorkflowState[]; transitions: WorkflowTransition[] }
