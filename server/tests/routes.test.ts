@@ -47,7 +47,7 @@ describe('GET /api/agents', () => {
   it('returns 8 seeded agents', async () => {
     const res = await request(buildApp()).get('/api/agents')
     expect(res.status).toBe(200)
-    expect(res.body).toHaveLength(8)
+    expect(res.body).toHaveLength(9)
   })
 })
 

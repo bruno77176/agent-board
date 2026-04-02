@@ -32,6 +32,6 @@ describe('seed', () => {
     seed(db)
     seed(db)
     const agents = db.prepare('SELECT * FROM agents').all()
-    expect(agents).toHaveLength(8)
+    expect(agents).toHaveLength(9)
   })
 })

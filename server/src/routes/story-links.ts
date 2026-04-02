@@ -25,15 +25,24 @@ export function storyLinksRouter(db: Database.Database, broadcast: Broadcast): R
     const toStory = db.prepare('SELECT id FROM stories WHERE id = ? OR short_id = ?').get(to_story_id, to_story_id) as any
     if (!toStory) return res.status(404).json({ error: 'Target story not found' })
     const id = randomUUID()
-    db.prepare('INSERT INTO story_links (id, from_story_id, to_story_id, link_type) VALUES (?, ?, ?, ?)')
-      .run(id, story.id, toStory.id, link_type)
+    try {
+      db.prepare('INSERT INTO story_links (id, from_story_id, to_story_id, link_type) VALUES (?, ?, ?, ?)')
+        .run(id, story.id, toStory.id, link_type)
+    } catch (e: any) {
+      if (e.message?.includes('UNIQUE constraint failed')) {
+        return res.status(409).json({ error: 'Link already exists' })
+      }
+      throw e
+    }
     const link = db.prepare('SELECT * FROM story_links WHERE id = ?').get(id)
     broadcast({ type: 'story_link.created', data: link })
     res.status(201).json(link)
   })
 
   router.delete('/:linkId', (req, res) => {
-    const link = db.prepare('SELECT * FROM story_links WHERE id = ?').get(req.params.linkId) as any
+    const story = db.prepare('SELECT id FROM stories WHERE id = ? OR short_id = ?').get(req.params.id, req.params.id) as any
+    if (!story) return res.status(404).json({ error: 'Story not found' })
+    const link = db.prepare('SELECT * FROM story_links WHERE id = ? AND (from_story_id = ? OR to_story_id = ?)').get(req.params.linkId, story.id, story.id) as any
     if (!link) return res.status(404).json({ error: 'Not found' })
     db.prepare('DELETE FROM story_links WHERE id = ?').run(req.params.linkId)
     broadcast({ type: 'story_link.deleted', data: { id: req.params.linkId, from_story_id: link.from_story_id, to_story_id: link.to_story_id } })

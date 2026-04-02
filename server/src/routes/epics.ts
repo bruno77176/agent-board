@@ -59,6 +59,10 @@ export function epicsRouter(db: Database.Database, broadcast: Broadcast): Router
     const epic = db.prepare('SELECT * FROM epics WHERE id = ? OR short_id = ?').get(req.params.id, req.params.id) as any
     if (!epic) return res.status(404).json({ error: 'Not found' })
     const { title, description, version, status, start_date, end_date } = req.body
+    const VALID_EPIC_STATUSES = ['active', 'completed', 'cancelled']
+    if (status && !VALID_EPIC_STATUSES.includes(status)) {
+      return res.status(400).json({ error: `status must be one of: ${VALID_EPIC_STATUSES.join(', ')}` })
+    }
     db.prepare(`UPDATE epics SET
       title = COALESCE(?, title),
       description = COALESCE(?, description),
