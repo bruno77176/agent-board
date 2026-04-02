@@ -2,6 +2,8 @@ import { Router } from 'express'
 import Database from 'better-sqlite3'
 import { randomUUID } from 'crypto'
 import { Broadcast } from '../ws/index.js'
+import { nextShortId } from '../db/index.js'
+import { storyLinksRouter } from './story-links.js'
 
 export function storiesRouter(db: Database.Database, broadcast: Broadcast): Router {
   const router = Router()
@@ -10,7 +12,9 @@ export function storiesRouter(db: Database.Database, broadcast: Broadcast): Rout
     const { feature_id, project_id } = req.query
     let rows: any[]
     if (feature_id) {
-      rows = db.prepare('SELECT * FROM stories WHERE feature_id = ? ORDER BY created_at').all(feature_id as string)
+      const feature = db.prepare('SELECT id FROM features WHERE id = ? OR short_id = ?').get(feature_id as string, feature_id as string) as any
+      const resolvedFeatureId = feature?.id ?? feature_id
+      rows = db.prepare('SELECT * FROM stories WHERE feature_id = ? ORDER BY created_at').all(resolvedFeatureId as string)
     } else if (project_id) {
       rows = db.prepare(`
         SELECT s.* FROM stories s
@@ -26,20 +30,23 @@ export function storiesRouter(db: Database.Database, broadcast: Broadcast): Rout
   })
 
   router.get('/:id', (req, res) => {
-    const story = db.prepare('SELECT * FROM stories WHERE id = ?').get(req.params.id) as any
+    const story = db.prepare('SELECT * FROM stories WHERE id = ? OR short_id = ?').get(req.params.id, req.params.id) as any
     if (!story) return res.status(404).json({ error: 'Not found' })
     const events = db.prepare("SELECT * FROM events WHERE target_id = ? AND target_type = 'story' ORDER BY created_at").all(story.id)
-    res.json({ ...story, tags: JSON.parse(story.tags ?? '[]'), acceptance_criteria: JSON.parse(story.acceptance_criteria ?? '[]'), events })
+    const links = db.prepare('SELECT * FROM story_links WHERE from_story_id = ? OR to_story_id = ? ORDER BY created_at').all(story.id, story.id)
+    res.json({ ...story, tags: JSON.parse(story.tags ?? '[]'), acceptance_criteria: JSON.parse(story.acceptance_criteria ?? '[]'), events, links })
   })
 
   router.post('/', (req, res) => {
     const { feature_id, title, description, priority, tags, estimated_minutes, parent_story_id } = req.body
     if (!feature_id || !title) return res.status(400).json({ error: 'feature_id and title required' })
     const id = randomUUID()
-    db.prepare(`INSERT INTO stories (id, feature_id, parent_story_id, title, description, priority, tags, estimated_minutes)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+    const featureRow = db.prepare('SELECT f.id, e.project_id FROM features f JOIN epics e ON f.epic_id = e.id WHERE f.id = ?').get(feature_id) as any
+    const short_id = nextShortId(db, featureRow.project_id, 'story')
+    db.prepare(`INSERT INTO stories (id, feature_id, parent_story_id, title, description, priority, tags, estimated_minutes, short_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .run(id, feature_id, parent_story_id ?? null, title, description ?? null,
-           priority ?? 'medium', JSON.stringify(tags ?? []), estimated_minutes ?? null)
+           priority ?? 'medium', JSON.stringify(tags ?? []), estimated_minutes ?? null, short_id)
     const story = db.prepare('SELECT * FROM stories WHERE id = ?').get(id) as any
     const result = { ...story, tags: JSON.parse(story.tags ?? '[]'), acceptance_criteria: JSON.parse(story.acceptance_criteria ?? '[]') }
     broadcast({ type: 'story.created', data: result })
@@ -93,6 +100,8 @@ export function storiesRouter(db: Database.Database, broadcast: Broadcast): Rout
     broadcast({ type: 'story.updated', data: result })
     res.json(result)
   })
+
+  router.use('/:id/links', storyLinksRouter(db, broadcast))
 
   return router
 }
