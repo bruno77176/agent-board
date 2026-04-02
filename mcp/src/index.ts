@@ -101,7 +101,7 @@ server.tool(
   },
   async ({ epic_id, project_id }) => {
     if (!epic_id && !project_id) {
-      return { content: [{ type: 'text' as const, text: 'Error: provide epic_id or project_id' }] }
+      throw new Error('list_features requires either epic_id or project_id')
     }
     const features = await board.listFeatures({ epic_id, project_id })
     return { content: [{ type: 'text' as const, text: JSON.stringify(features, null, 2) }] }
@@ -132,6 +132,24 @@ server.tool(
   async (args) => {
     const epic = await board.createEpic(args)
     return { content: [{ type: 'text' as const, text: `Epic created: ${epic.short_id ?? epic.id} — ${epic.title}` }] }
+  }
+)
+
+server.tool(
+  'update_epic',
+  'Update an epic\'s title, description, version, status, or date range (start_date/end_date as ISO strings e.g. "2026-04-01").',
+  {
+    epic_id: z.string().describe('Epic ID or short_id'),
+    title: z.string().optional(),
+    description: z.string().optional(),
+    version: z.string().optional(),
+    status: z.enum(['active', 'completed', 'cancelled']).optional(),
+    start_date: z.string().optional().describe('ISO date string e.g. 2026-04-01'),
+    end_date: z.string().optional().describe('ISO date string e.g. 2026-04-30'),
+  },
+  async ({ epic_id, ...data }) => {
+    const epic = await board.updateEpic(epic_id, data)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(epic, null, 2) }] }
   }
 )
 
@@ -307,9 +325,8 @@ server.tool(
     git_branch: z.string().describe('Branch name, e.g. feat/login-form'),
   },
   async ({ story_id, git_branch }) => {
-    await board.updateStory(story_id, { git_branch })
-    const linked = await board.getStory(story_id)
-    return { content: [{ type: 'text' as const, text: `${linked.short_id ?? linked.id} linked to branch: ${git_branch}` }] }
+    const updated = await board.updateStory(story_id, { git_branch })
+    return { content: [{ type: 'text' as const, text: `${updated.short_id ?? updated.id} linked to branch: ${git_branch}` }] }
   }
 )
 
@@ -358,6 +375,19 @@ server.tool(
   async ({ story_id }) => {
     const links = await board.getStoryLinks(story_id)
     return { content: [{ type: 'text' as const, text: JSON.stringify(links, null, 2) }] }
+  }
+)
+
+server.tool(
+  'delete_story_link',
+  'Remove a link between two stories. Use the link id from get_story_links output.',
+  {
+    story_id: z.string().describe('Story ID or short_id'),
+    link_id: z.string().describe('Link ID from get_story_links'),
+  },
+  async ({ story_id, link_id }) => {
+    await board.deleteStoryLink(story_id, link_id)
+    return { content: [{ type: 'text' as const, text: 'Link deleted.' }] }
   }
 )
 
