@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '@/lib/api'
-import type { Story, Workflow, Project, Agent } from '@/lib/api'
+import type { Story, Workflow, Project, Agent, Epic } from '@/lib/api'
 import { KanbanColumn } from '@/components/KanbanColumn'
+import { FilterBar, defaultFilters } from '@/components/FilterBar'
+import type { Filters } from '@/components/FilterBar'
 
 type View = 'board' | 'list'
 
@@ -13,6 +15,7 @@ export function BoardView({ projectId }: Props) {
   const { projectKey } = useParams<{ projectKey: string }>()
   const navigate = useNavigate()
   const [view, setView] = useState<View>('board')
+  const [filters, setFilters] = useState<Filters>(defaultFilters)
 
   const { data: stories = [] } = useQuery({
     queryKey: ['stories', projectId],
@@ -23,6 +26,11 @@ export function BoardView({ projectId }: Props) {
   const { data: agents = [] } = useQuery({ queryKey: ['agents'], queryFn: api.agents.list })
   const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: api.projects.list })
   const { data: workflows = [] } = useQuery({ queryKey: ['workflows'], queryFn: api.workflows.list })
+  const { data: epics = [] } = useQuery({
+    queryKey: ['epics', projectId],
+    queryFn: () => api.epics.list(projectId),
+    enabled: !!projectId,
+  })
 
   const project = (projects as Project[]).find(p => p.id === projectId)
   const workflow = (workflows as Workflow[]).find(w => w.id === project?.workflow_id)
@@ -32,34 +40,52 @@ export function BoardView({ projectId }: Props) {
   )
 
   const typedAgents = agents as Agent[]
+  const typedEpics = epics as Epic[]
   const typedStories = stories as Story[]
   const agentMap = Object.fromEntries(typedAgents.map(a => [a.id, a]))
+
+  // Apply filters
+  const filteredStories = typedStories.filter(s => {
+    if (filters.assignee && s.assigned_agent_id !== filters.assignee) return false
+    if (filters.priority && s.priority !== filters.priority) return false
+    if (filters.search) {
+      const q = filters.search.toLowerCase()
+      if (!s.title.toLowerCase().includes(q) && !(s.description ?? '').toLowerCase().includes(q)) return false
+    }
+    return true
+  })
 
   const handleStoryClick = (story: Story) => {
     navigate(`/${projectKey ?? ''}/stories/${story.id}`)
   }
 
+  const toolbar = (
+    <div className="flex items-center gap-3 px-6 py-3 border-b border-slate-200 bg-white flex-shrink-0">
+      <div className="flex items-center gap-1">
+        {(['board', 'list'] as View[]).map(v => (
+          <button key={v} onClick={() => setView(v)}
+            className={`px-3 py-1 text-xs rounded capitalize transition-colors ${
+              view === v ? 'bg-slate-100 text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'
+            }`}>
+            {v}
+          </button>
+        ))}
+      </div>
+      <FilterBar agents={typedAgents} epics={typedEpics} filters={filters} onChange={setFilters} />
+    </div>
+  )
+
   if (view === 'board') {
     return (
       <div className="h-full flex flex-col">
-        {/* View toggle */}
-        <div className="flex items-center gap-1 px-6 pt-4 pb-0 flex-shrink-0">
-          {(['board', 'list'] as View[]).map(v => (
-            <button key={v} onClick={() => setView(v)}
-              className={`px-3 py-1 text-xs rounded capitalize transition-colors ${
-                view === v ? 'bg-slate-100 text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'
-              }`}>
-              {v}
-            </button>
-          ))}
-        </div>
+        {toolbar}
         <div className="flex-1 overflow-x-auto">
           <div className="flex gap-5 p-6 h-full min-w-max items-start">
             {workflow.states.map(state => (
               <KanbanColumn
                 key={state.id}
                 state={state}
-                stories={typedStories.filter(s => s.status === state.id)}
+                stories={filteredStories.filter(s => s.status === state.id)}
                 agents={typedAgents}
                 onCardClick={handleStoryClick}
               />
@@ -73,17 +99,7 @@ export function BoardView({ projectId }: Props) {
   // List view
   return (
     <div className="h-full flex flex-col">
-      {/* View toggle */}
-      <div className="flex items-center gap-1 px-6 pt-4 pb-0 flex-shrink-0">
-        {(['board', 'list'] as View[]).map(v => (
-          <button key={v} onClick={() => setView(v)}
-            className={`px-3 py-1 text-xs rounded capitalize transition-colors ${
-              view === v ? 'bg-slate-100 text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'
-            }`}>
-            {v}
-          </button>
-        ))}
-      </div>
+      {toolbar}
       <div className="flex-1 overflow-y-auto px-6 pt-4">
         <table className="w-full text-sm border-collapse">
           <thead>
@@ -95,7 +111,7 @@ export function BoardView({ projectId }: Props) {
             </tr>
           </thead>
           <tbody>
-            {typedStories.map(s => {
+            {filteredStories.map(s => {
               const agent = s.assigned_agent_id ? agentMap[s.assigned_agent_id] : null
               const state = workflow.states.find(st => st.id === s.status)
               return (
