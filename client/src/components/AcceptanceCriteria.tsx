@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { AcceptanceCriterion } from '@/lib/api'
 import { Plus, Trash2 } from 'lucide-react'
 
-const genId = () => Math.random().toString(36).slice(2)
+const genId = () => crypto.randomUUID()
 
 interface Props {
   items: AcceptanceCriterion[]

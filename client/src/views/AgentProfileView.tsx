@@ -111,8 +111,7 @@ export function AgentProfileView() {
               {activeStories.map(s => (
                 <li
                   key={s.id}
-                  className="flex items-center gap-2 p-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer"
-                  onClick={() => {/* story detail requires projectKey — not available here */}}
+                  className="flex items-center gap-2 p-2.5 rounded-lg border border-slate-200"
                 >
                   <span className={`text-xs px-1.5 py-0.5 rounded-full shrink-0 ${STATUS_COLOR[s.status] ?? 'bg-slate-100 text-slate-600'}`}>
                     {s.status}
