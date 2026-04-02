@@ -63,18 +63,22 @@ export function epicsRouter(db: Database.Database, broadcast: Broadcast): Router
     if (status && !VALID_EPIC_STATUSES.includes(status)) {
       return res.status(400).json({ error: `status must be one of: ${VALID_EPIC_STATUSES.join(', ')}` })
     }
-    db.prepare(`UPDATE epics SET
-      title = COALESCE(?, title),
-      description = COALESCE(?, description),
-      version = COALESCE(?, version),
-      status = COALESCE(?, status),
-      start_date = COALESCE(?, start_date),
-      end_date = COALESCE(?, end_date)
-      WHERE id = ?`).run(
-        title ?? null, description ?? null, version ?? null,
-        status ?? null, start_date ?? null, end_date ?? null,
-        epic.id
-    )
+
+    const updates: string[] = []
+    const params: any[] = []
+
+    if (title !== undefined) { updates.push('title = ?'); params.push(title) }
+    if (description !== undefined) { updates.push('description = ?'); params.push(description) }
+    if (version !== undefined) { updates.push('version = ?'); params.push(version) }
+    if (status !== undefined) { updates.push('status = ?'); params.push(status) }
+    // For dates: allow null to clear
+    if ('start_date' in req.body) { updates.push('start_date = ?'); params.push(start_date ?? null) }
+    if ('end_date' in req.body) { updates.push('end_date = ?'); params.push(end_date ?? null) }
+
+    if (updates.length === 0) return res.json(epic)
+    params.push(epic.id)
+    db.prepare(`UPDATE epics SET ${updates.join(', ')} WHERE id = ?`).run(...params)
+
     const updated = db.prepare('SELECT * FROM epics WHERE id = ?').get(epic.id)
     broadcast({ type: 'epic.updated', data: updated })
     res.json(updated)

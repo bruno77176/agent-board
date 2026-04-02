@@ -33,7 +33,10 @@ export function EpicDetailView({ epicId }: Props) {
 
   const updateEpic = useMutation({
     mutationFn: (data: Partial<Epic>) => api.epics.update((epic as Epic).id, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['epics'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['epics'] })
+      queryClient.invalidateQueries({ queryKey: ['epic', epicId] })
+    },
   })
 
   const typedEpic = epic as Epic | undefined
@@ -68,14 +71,14 @@ export function EpicDetailView({ epicId }: Props) {
             <div className="flex items-center gap-4 mt-2">
               <label className="text-xs text-slate-500">
                 Start
-                <input type="date" defaultValue={typedEpic.start_date ?? ''}
-                  onChange={e => updateEpic.mutate({ start_date: e.target.value || undefined })}
+                <input type="date" value={typedEpic.start_date ?? ''}
+                  onChange={e => updateEpic.mutate({ start_date: e.target.value || null })}
                   className="ml-2 text-xs border border-slate-200 rounded px-2 py-0.5" />
               </label>
               <label className="text-xs text-slate-500">
                 End
-                <input type="date" defaultValue={typedEpic.end_date ?? ''}
-                  onChange={e => updateEpic.mutate({ end_date: e.target.value || undefined })}
+                <input type="date" value={typedEpic.end_date ?? ''}
+                  onChange={e => updateEpic.mutate({ end_date: e.target.value || null })}
                   className="ml-2 text-xs border border-slate-200 rounded px-2 py-0.5" />
               </label>
             </div>

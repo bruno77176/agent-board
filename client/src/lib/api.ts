@@ -66,7 +66,7 @@ export interface AcceptanceCriterion { id: string; text: string; checked: boolea
 export interface WorkflowState { id: string; label: string; color: string }
 export interface WorkflowTransition { from: string; to: string; label: string }
 export interface Workflow { id: string; name: string; states: WorkflowState[]; transitions: WorkflowTransition[] }
-export interface Epic { id: string; project_id: string; title: string; description?: string; version?: string; status: string; created_at: string; short_id?: string; start_date?: string; end_date?: string }
+export interface Epic { id: string; project_id: string; title: string; description?: string; version?: string; status: string; created_at: string; short_id?: string; start_date?: string | null; end_date?: string | null }
 export interface Feature { id: string; epic_id: string; title: string; description?: string; tags: string[]; created_at: string; short_id?: string }
 export interface StoryLink {
   id: string
