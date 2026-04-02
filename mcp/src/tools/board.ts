@@ -27,4 +27,19 @@ export const board = {
     call(`/stories/${id}/status`, 'PATCH', { status, agent_id, comment }),
   updateStory: (id: string, data: object) => call(`/stories/${id}`, 'PATCH', data),
   createEvent: (data: object) => call('/events', 'POST', data),
+  getEpic: (id: string) => call(`/epics/${id}`),
+  getFeature: (id: string) => call(`/features/${id}`),
+  listFeatures: (params: { epic_id?: string; project_id?: string }) => {
+    const qs = new URLSearchParams(
+      Object.entries(params).filter(([, v]) => v) as [string, string][]
+    ).toString()
+    return call(`/features?${qs}`)
+  },
+  getProjectOverview: (id: string) => call(`/projects/${id}/overview`),
+  linkStories: (story_id: string, data: { to_story_id: string; link_type: string }) =>
+    call(`/stories/${story_id}/links`, 'POST', data),
+  getStoryLinks: (story_id: string) => call(`/stories/${story_id}/links`),
+  deleteStoryLink: (story_id: string, link_id: string) =>
+    call(`/stories/${story_id}/links/${link_id}`, 'DELETE'),
+  updateEpic: (id: string, data: object) => call(`/epics/${id}`, 'PATCH', data),
 }

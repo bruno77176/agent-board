@@ -72,6 +72,52 @@ server.tool(
   }
 )
 
+server.tool(
+  'get_epic',
+  'Get a single epic with its features and story count/status rollups per feature',
+  { epic_id: z.string().describe('Epic ID or short_id (e.g. PROJ-E1)') },
+  async ({ epic_id }) => {
+    const epic = await board.getEpic(epic_id)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(epic, null, 2) }] }
+  }
+)
+
+server.tool(
+  'get_feature',
+  'Get a single feature with its child stories, story count rollups, and parent epic info',
+  { feature_id: z.string().describe('Feature ID or short_id (e.g. PROJ-F1)') },
+  async ({ feature_id }) => {
+    const feature = await board.getFeature(feature_id)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(feature, null, 2) }] }
+  }
+)
+
+server.tool(
+  'list_features',
+  'List features for an epic or all features for a project',
+  {
+    epic_id: z.string().optional().describe('Filter by epic ID or short_id'),
+    project_id: z.string().optional().describe('Filter by project ID — returns all features across all epics'),
+  },
+  async ({ epic_id, project_id }) => {
+    if (!epic_id && !project_id) {
+      return { content: [{ type: 'text' as const, text: 'Error: provide epic_id or project_id' }] }
+    }
+    const features = await board.listFeatures({ epic_id, project_id })
+    return { content: [{ type: 'text' as const, text: JSON.stringify(features, null, 2) }] }
+  }
+)
+
+server.tool(
+  'get_project_overview',
+  'Get full project hierarchy: epics → features → story counts/status summaries, plus recent activity. Use this for "what\'s new on the board".',
+  { project_id: z.string().describe('Project ID or project key (e.g. PROJ)') },
+  async ({ project_id }) => {
+    const overview = await board.getProjectOverview(project_id)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(overview, null, 2) }] }
+  }
+)
+
 // ── Creating work ─────────────────────────────────────────────────
 
 server.tool(
@@ -85,7 +131,7 @@ server.tool(
   },
   async (args) => {
     const epic = await board.createEpic(args)
-    return { content: [{ type: 'text' as const, text: `Epic created: ${epic.id} — ${epic.title}` }] }
+    return { content: [{ type: 'text' as const, text: `Epic created: ${epic.short_id ?? epic.id} — ${epic.title}` }] }
   }
 )
 
@@ -100,7 +146,7 @@ server.tool(
   },
   async (args) => {
     const feature = await board.createFeature(args)
-    return { content: [{ type: 'text' as const, text: `Feature created: ${feature.id} — ${feature.title}` }] }
+    return { content: [{ type: 'text' as const, text: `Feature created: ${feature.short_id ?? feature.id} — ${feature.title}` }] }
   }
 )
 
@@ -126,7 +172,7 @@ server.tool(
       }
     }
     const story = await board.createStory(args)
-    return { content: [{ type: 'text' as const, text: `Story created: ${story.id} — ${story.title} [${story.status}]` }] }
+    return { content: [{ type: 'text' as const, text: `Story created: ${story.short_id ?? story.id} — ${story.title} [${story.status}]` }] }
   }
 )
 
@@ -138,7 +184,7 @@ server.tool(
   { story_id: z.string(), agent_id: z.string().describe('Agent slug, e.g. tess-ter') },
   async ({ story_id, agent_id }) => {
     const story = await board.moveStatus(story_id, 'in_progress', agent_id, 'Started work')
-    return { content: [{ type: 'text' as const, text: `"${story.title}" → In Progress (${agent_id})` }] }
+    return { content: [{ type: 'text' as const, text: `${story.short_id ?? story.id} "${story.title}" → In Progress (${agent_id})` }] }
   }
 )
 
@@ -153,7 +199,7 @@ server.tool(
   },
   async ({ story_id, status, agent_id, comment }) => {
     const story = await board.moveStatus(story_id, status, agent_id, comment)
-    return { content: [{ type: 'text' as const, text: `"${story.title}" → ${status}` }] }
+    return { content: [{ type: 'text' as const, text: `${story.short_id ?? story.id} "${story.title}" → ${status}` }] }
   }
 )
 
@@ -163,7 +209,7 @@ server.tool(
   { story_id: z.string(), agent_id: z.string().optional() },
   async ({ story_id, agent_id }) => {
     const story = await board.moveStatus(story_id, 'review', agent_id, 'Requested code review')
-    return { content: [{ type: 'text' as const, text: `"${story.title}" → Review` }] }
+    return { content: [{ type: 'text' as const, text: `${story.short_id ?? story.id} "${story.title}" → Review` }] }
   }
 )
 
@@ -185,7 +231,7 @@ server.tool(
       }
     }
     const story = await board.moveStatus(story_id, 'done', agent_id, '✅ Completed — checklist confirmed')
-    return { content: [{ type: 'text' as const, text: `"${story.title}" → Done ✅` }] }
+    return { content: [{ type: 'text' as const, text: `${story.short_id ?? story.id} "${story.title}" → Done ✅` }] }
   }
 )
 
@@ -210,7 +256,7 @@ server.tool(
     return {
       content: [{
         type: 'text' as const,
-        text: `🚨 Escalated. Story "${story.title}" returned to backlog. Arch review story created: ${archStory.id}`
+        text: `🚨 Escalated. Story "${story.title}" returned to backlog. Arch review story created: ${archStory.short_id ?? archStory.id}`
       }]
     }
   }
@@ -247,7 +293,7 @@ server.tool(
     return {
       content: [{
         type: 'text' as const,
-        text: `TDD cycle created:\n  🔴 ${red.id} — ${red.title}\n  🟢 ${green.id} — ${green.title}\n  🔵 ${refactor.id} — ${refactor.title}`
+        text: `TDD cycle created:\n  🔴 ${red.short_id ?? red.id} — ${red.title}\n  🟢 ${green.short_id ?? green.id} — ${green.title}\n  🔵 ${refactor.short_id ?? refactor.id} — ${refactor.title}`
       }]
     }
   }
@@ -262,7 +308,8 @@ server.tool(
   },
   async ({ story_id, git_branch }) => {
     await board.updateStory(story_id, { git_branch })
-    return { content: [{ type: 'text' as const, text: `Story ${story_id} linked to branch: ${git_branch}` }] }
+    const linked = await board.getStory(story_id)
+    return { content: [{ type: 'text' as const, text: `${linked.short_id ?? linked.id} linked to branch: ${git_branch}` }] }
   }
 )
 
@@ -285,6 +332,32 @@ server.tool(
   async ({ story_id, ...updates }) => {
     const story = await board.updateStory(story_id, updates)
     return { content: [{ type: 'text' as const, text: JSON.stringify(story, null, 2) }] }
+  }
+)
+
+server.tool(
+  'link_stories',
+  'Create a directional link between two stories. Use link_type "blocks" when one story must be completed before another can start — agents should call this to declare blockers before starting work.',
+  {
+    from_story_id: z.string().describe('Story ID or short_id of the blocking/source story'),
+    to_story_id: z.string().describe('Story ID or short_id of the blocked/target story'),
+    link_type: z.enum(['blocks', 'duplicates', 'relates_to']),
+  },
+  async ({ from_story_id, to_story_id, link_type }) => {
+    const link = await board.linkStories(from_story_id, { to_story_id, link_type })
+    return { content: [{ type: 'text' as const, text: JSON.stringify(link, null, 2) }] }
+  }
+)
+
+server.tool(
+  'get_story_links',
+  'Get all links for a story — shows what it blocks, what blocks it, and duplicates. Check this before starting work on a story to identify blockers.',
+  {
+    story_id: z.string().describe('Story ID or short_id'),
+  },
+  async ({ story_id }) => {
+    const links = await board.getStoryLinks(story_id)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(links, null, 2) }] }
   }
 )
 
