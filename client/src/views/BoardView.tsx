@@ -4,7 +4,7 @@ import type { DragEndEvent } from '@dnd-kit/core'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '@/lib/api'
-import type { Story, Workflow, Project, Agent, Epic } from '@/lib/api'
+import type { Story, Workflow, Project, Agent, Epic, Feature } from '@/lib/api'
 import { KanbanColumn } from '@/components/KanbanColumn'
 import { FilterBar, defaultFilters } from '@/components/FilterBar'
 import type { Filters } from '@/components/FilterBar'
@@ -20,7 +20,7 @@ export function BoardView({ projectId }: Props) {
   const queryClient = useQueryClient()
   const [view, setView] = useState<View>('board')
   const [filters, setFilters] = useState<Filters>(defaultFilters)
-  const [_swimlane, _setSwimlane] = useState<Swimlane>('none')
+  const [swimlane, setSwimlane] = useState<Swimlane>('none')
 
   const { data: stories = [] } = useQuery({
     queryKey: ['stories', projectId],
@@ -36,6 +36,15 @@ export function BoardView({ projectId }: Props) {
     queryFn: () => api.epics.list(projectId),
     enabled: !!projectId,
   })
+
+  const { data: features = [] } = useQuery({
+    queryKey: ['features'],
+    queryFn: () => api.features.listAll(),
+  })
+  // Build feature -> epic lookup
+  const featureToEpicId = Object.fromEntries(
+    (features as Feature[]).map(f => [f.id, f.epic_id])
+  )
 
   const moveMutation = useMutation({
     mutationFn: ({ storyId, status }: { storyId: string; status: string }) =>
@@ -89,6 +98,34 @@ export function BoardView({ projectId }: Props) {
     navigate(`/${projectKey ?? ''}/stories/${story.short_id ?? story.id}`)
   }
 
+  function groupStories(storiesToGroup: Story[], lane: Swimlane): Array<{ key: string; label: string; stories: Story[] }> {
+    if (lane === 'none') return [{ key: 'all', label: '', stories: storiesToGroup }]
+
+    if (lane === 'priority') {
+      return ['high', 'medium', 'low']
+        .map(p => ({ key: p, label: p.charAt(0).toUpperCase() + p.slice(1) + ' Priority', stories: storiesToGroup.filter(s => s.priority === p) }))
+        .filter(g => g.stories.length > 0)
+    }
+
+    if (lane === 'assignee') {
+      const groups = typedAgents
+        .map(a => ({ key: a.id, label: `${a.avatar_emoji} ${a.name}`, stories: storiesToGroup.filter(s => s.assigned_agent_id === a.id) }))
+        .filter(g => g.stories.length > 0)
+      const unassigned = storiesToGroup.filter(s => !s.assigned_agent_id)
+      return [...groups, ...(unassigned.length > 0 ? [{ key: 'unassigned', label: 'Unassigned', stories: unassigned }] : [])]
+    }
+
+    if (lane === 'epic') {
+      const epicGroups = typedEpics
+        .map(e => ({ key: e.id, label: `${e.short_id ?? ''} ${e.title}`.trim(), stories: storiesToGroup.filter(s => featureToEpicId[s.feature_id] === e.id) }))
+        .filter(g => g.stories.length > 0)
+      const noEpic = storiesToGroup.filter(s => !featureToEpicId[s.feature_id])
+      return [...epicGroups, ...(noEpic.length > 0 ? [{ key: 'no-epic', label: 'No Epic', stories: noEpic }] : [])]
+    }
+
+    return [{ key: 'all', label: '', stories: storiesToGroup }]
+  }
+
   const toolbar = (
     <div className="flex items-center gap-3 px-6 py-3 border-b border-slate-200 bg-white flex-shrink-0">
       <div className="flex items-center gap-1">
@@ -101,27 +138,51 @@ export function BoardView({ projectId }: Props) {
           </button>
         ))}
       </div>
+      {view === 'board' && (
+        <div className="flex items-center gap-1 ml-3 pl-3 border-l border-slate-200">
+          <span className="text-xs text-slate-400 mr-1">Group:</span>
+          {(['none', 'epic', 'assignee', 'priority'] as Swimlane[]).map(s => (
+            <button key={s} onClick={() => setSwimlane(s)}
+              className={`px-2 py-1 text-xs rounded capitalize transition-colors ${
+                swimlane === s ? 'bg-slate-100 text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'
+              }`}>
+              {s === 'none' ? 'None' : s}
+            </button>
+          ))}
+        </div>
+      )}
       <FilterBar agents={typedAgents} epics={typedEpics} filters={filters} onChange={setFilters} />
     </div>
   )
 
   if (view === 'board') {
+    const groups = groupStories(filteredStories, swimlane)
     return (
       <div className="h-full flex flex-col">
         {toolbar}
-        <div className="flex-1 overflow-x-auto">
+        <div className="flex-1 overflow-auto">
           <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <div className="flex gap-5 p-6 h-full min-w-max items-start">
-              {workflow.states.map(state => (
-                <KanbanColumn
-                  key={state.id}
-                  state={state}
-                  stories={filteredStories.filter(s => s.status === state.id)}
-                  agents={typedAgents}
-                  onCardClick={handleStoryClick}
-                />
-              ))}
-            </div>
+            {groups.map(group => (
+              <div key={group.key}>
+                {swimlane !== 'none' && group.label && (
+                  <div className="px-6 pt-5 pb-1">
+                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{group.label}</span>
+                    <span className="text-xs text-slate-400 ml-2">({group.stories.length})</span>
+                  </div>
+                )}
+                <div className="flex gap-5 px-6 pb-6 min-w-max items-start">
+                  {workflow.states.map(state => (
+                    <KanbanColumn
+                      key={`${group.key}-${state.id}`}
+                      state={state}
+                      stories={group.stories.filter(s => s.status === state.id)}
+                      agents={typedAgents}
+                      onCardClick={handleStoryClick}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
           </DndContext>
         </div>
       </div>
