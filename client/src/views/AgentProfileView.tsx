@@ -82,7 +82,7 @@ export function AgentProfileView() {
         {/* Skills */}
         {typedAgent.skills.length > 0 && (
           <div>
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Skills</h3>
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Superpowers Skills</h3>
             <div className="flex flex-wrap gap-1.5">
               {typedAgent.skills.map(skill => (
                 <span
@@ -112,7 +112,7 @@ export function AgentProfileView() {
                 <li
                   key={s.id}
                   className="flex items-center gap-2 p-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer"
-                  onClick={() => navigate(`/team`)}
+                  onClick={() => {/* story detail requires projectKey — not available here */}}
                 >
                   <span className={`text-xs px-1.5 py-0.5 rounded-full shrink-0 ${STATUS_COLOR[s.status] ?? 'bg-slate-100 text-slate-600'}`}>
                     {s.status}

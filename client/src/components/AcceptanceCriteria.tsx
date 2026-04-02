@@ -1,54 +1,79 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { api } from '@/lib/api'
+import { useState } from 'react'
 import type { AcceptanceCriterion } from '@/lib/api'
+import { Plus, Trash2 } from 'lucide-react'
+
+const genId = () => Math.random().toString(36).slice(2)
 
 interface Props {
-  storyId: string
-  criteria: AcceptanceCriterion[]
+  items: AcceptanceCriterion[]
+  onChange: (items: AcceptanceCriterion[]) => void
+  readOnly?: boolean
 }
 
-export function AcceptanceCriteria({ storyId, criteria }: Props) {
-  const queryClient = useQueryClient()
+export function AcceptanceCriteria({ items, onChange, readOnly = false }: Props) {
+  const [newText, setNewText] = useState('')
 
-  const toggle = useMutation({
-    mutationFn: (criterion: AcceptanceCriterion) =>
-      api.stories.update(storyId, {
-        acceptance_criteria: criteria.map(c =>
-          c.id === criterion.id ? { ...c, checked: !c.checked } : c
-        ),
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['story', storyId] })
-    },
-  })
+  const toggle = (id: string) =>
+    onChange(items.map(item => item.id === id ? { ...item, checked: !item.checked } : item))
 
-  if (criteria.length === 0) return null
+  const remove = (id: string) => onChange(items.filter(item => item.id !== id))
 
-  const done = criteria.filter(c => c.checked).length
+  const add = () => {
+    if (!newText.trim()) return
+    onChange([...items, { id: genId(), text: newText.trim(), checked: false }])
+    setNewText('')
+  }
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-          Acceptance Criteria
-        </h3>
-        <span className="text-xs text-slate-400">{done}/{criteria.length}</span>
-      </div>
-      <ul className="space-y-1">
-        {criteria.map(c => (
-          <li key={c.id} className="flex items-start gap-2">
+      <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Acceptance Criteria</h3>
+      <div className="space-y-1.5">
+        {items.map(item => (
+          <div key={item.id} className="flex items-start gap-2 group">
             <input
               type="checkbox"
-              checked={c.checked}
-              onChange={() => toggle.mutate(c)}
-              className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-blue-600 cursor-pointer"
+              checked={item.checked}
+              onChange={() => toggle(item.id)}
+              disabled={readOnly}
+              className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-blue-600 flex-shrink-0 cursor-pointer"
             />
-            <span className={`text-sm leading-snug ${c.checked ? 'line-through text-slate-400' : 'text-slate-700'}`}>
-              {c.text}
+            <span className={`text-sm flex-1 ${item.checked ? 'line-through text-slate-400' : 'text-slate-700'}`}>
+              {item.text}
             </span>
-          </li>
+            {!readOnly && (
+              <button
+                onClick={() => remove(item.id)}
+                className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-400 transition-opacity flex-shrink-0"
+              >
+                <Trash2 size={12} />
+              </button>
+            )}
+          </div>
         ))}
-      </ul>
+        {items.length === 0 && !readOnly && (
+          <p className="text-xs text-slate-300 italic">No criteria yet.</p>
+        )}
+      </div>
+
+      {!readOnly && (
+        <div className="flex items-center gap-2 mt-2">
+          <input
+            type="text"
+            value={newText}
+            onChange={e => setNewText(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && add()}
+            placeholder="Add criterion…"
+            className="flex-1 text-xs border-0 border-b border-slate-200 focus:border-blue-400 focus:outline-none py-1 text-slate-700 bg-transparent"
+          />
+          <button
+            onClick={add}
+            disabled={!newText.trim()}
+            className="text-blue-500 hover:text-blue-700 disabled:opacity-30"
+          >
+            <Plus size={14} />
+          </button>
+        </div>
+      )}
     </div>
   )
 }
