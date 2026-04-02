@@ -1,87 +1,99 @@
 import { useState } from 'react'
+import { Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from './lib/api'
-import type { Project, Epic } from './lib/api'
+import type { Project } from './lib/api'
 import { useBoard } from './hooks/useBoard'
+import { Sidebar } from './components/Sidebar'
 import { BoardView } from './views/BoardView'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Separator } from '@/components/ui/separator'
+import { BacklogView } from './views/BacklogView'
+import { EpicsView } from './views/EpicsView'
+import { EpicDetailView } from './views/EpicDetailView'
+import { StoryDetailView } from './views/StoryDetailView'
+import { TeamView } from './views/TeamView'
+import { AgentProfileView } from './views/AgentProfileView'
 
-type View = 'board' | 'list' | 'backlog'
+// Layout wrapper that renders Sidebar + main content area
+function AppLayout({ onCreateClick }: { onCreateClick: () => void }) {
+  return (
+    <div className="h-screen flex bg-slate-50">
+      <Sidebar onCreateClick={onCreateClick} />
+      <main className="flex-1 overflow-hidden">
+        <Routes>
+          <Route path="/:projectKey/board" element={<ProjectRoutes view="board" />} />
+          <Route path="/:projectKey/backlog" element={<ProjectRoutes view="backlog" />} />
+          <Route path="/:projectKey/epics" element={<ProjectRoutes view="epics" />} />
+          <Route path="/:projectKey/epics/:epicId" element={<ProjectRoutes view="epicDetail" />} />
+          <Route path="/:projectKey/features" element={<ProjectRoutes view="features" />} />
+          <Route path="/:projectKey/stories/:storyId" element={<ProjectRoutes view="story" />} />
+          <Route path="/team" element={<TeamView />} />
+          <Route path="/team/:slug" element={<AgentProfileView />} />
+          <Route path="*" element={<WelcomeScreen />} />
+        </Routes>
+      </main>
+    </div>
+  )
+}
+
+// Resolves projectKey -> projectId and renders the right view
+function ProjectRoutes({ view }: { view: string }) {
+  const { projectKey, epicId, storyId } = useParams<{ projectKey: string; epicId: string; storyId: string }>()
+  const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: api.projects.list })
+  const project = (projects as Project[]).find(p => p.key === projectKey)
+
+  if (!project) {
+    return (
+      <div className="flex items-center justify-center h-full text-slate-400 text-sm">
+        Loading...
+      </div>
+    )
+  }
+
+  if (view === 'board') return <BoardView projectId={project.id} />
+  if (view === 'backlog') return <BacklogView projectId={project.id} />
+  if (view === 'epics') return <EpicsView projectId={project.id} projectKey={project.key} />
+  if (view === 'epicDetail') return <EpicDetailView epicId={epicId ?? ''} projectKey={project.key} />
+  if (view === 'story') return <StoryDetailView storyId={storyId ?? ''} projectKey={project.key} />
+  if (view === 'features') return <EpicsView projectId={project.id} projectKey={project.key} />
+
+  return null
+}
+
+function WelcomeScreen() {
+  const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: api.projects.list })
+  const firstProject = (projects as Project[])[0]
+
+  if (firstProject) {
+    return <Navigate to={`/${firstProject.key}/board`} replace />
+  }
+
+  return (
+    <div className="flex items-center justify-center h-full">
+      <div className="text-center">
+        <p className="text-slate-400 text-sm mb-1">No projects found</p>
+        <p className="text-slate-300 text-xs">Create a project via MCP to get started</p>
+      </div>
+    </div>
+  )
+}
 
 export default function App() {
   useBoard()
-  const [projectId, setProjectId] = useState<string>('')
-  const [epicId, setEpicId] = useState<string>('')
-  const [view, setView] = useState<View>('board')
-
-  const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: api.projects.list })
-  const { data: epics = [] } = useQuery({
-    queryKey: ['epics', projectId],
-    queryFn: () => api.epics.list(projectId),
-    enabled: !!projectId,
-  })
+  const [createOpen, setCreateOpen] = useState(false)
 
   return (
-    <div className="h-screen flex flex-col bg-slate-50">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 px-4 h-12 flex items-center gap-3 flex-shrink-0">
-        <span className="font-semibold text-sm text-slate-900 tracking-tight">Agent Board</span>
-        <Separator orientation="vertical" className="h-4" />
-
-        <Select value={projectId} onValueChange={(v) => { setProjectId(v ?? ''); setEpicId('') }}>
-          <SelectTrigger className="w-44 h-7 text-xs border-slate-200">
-            <SelectValue placeholder="Select project" />
-          </SelectTrigger>
-          <SelectContent>
-            {(projects as Project[]).map(p => (
-              <SelectItem key={p.id} value={p.id} className="text-xs">
-                <span className="font-mono font-semibold text-slate-500 mr-1.5">{p.key}</span>{p.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {projectId && (
-          <Select value={epicId} onValueChange={(v) => setEpicId(v ?? '')}>
-            <SelectTrigger className="w-56 h-7 text-xs border-slate-200">
-              <SelectValue placeholder="All epics" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="" className="text-xs">All epics</SelectItem>
-              {(epics as Epic[]).map(e => (
-                <SelectItem key={e.id} value={e.id} className="text-xs">{e.title}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-
-        <div className="ml-auto flex items-center gap-0.5">
-          {(['board', 'list', 'backlog'] as View[]).map(v => (
-            <button key={v} onClick={() => setView(v)}
-              className={`px-3 py-1 text-xs rounded capitalize transition-colors ${
-                view === v ? 'bg-slate-100 text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'
-              }`}>
-              {v}
-            </button>
-          ))}
+    <>
+      <AppLayout onCreateClick={() => setCreateOpen(true)} />
+      {/* CreateModal placeholder — Task 14 */}
+      {createOpen && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center"
+          onClick={() => setCreateOpen(false)}>
+          <div className="bg-white rounded-lg p-6 shadow-xl text-sm text-slate-600"
+            onClick={e => e.stopPropagation()}>
+            Create modal coming soon (Task 14)
+          </div>
         </div>
-      </header>
-
-      {/* Main */}
-      <main className="flex-1 overflow-hidden">
-        {projectId
-          ? <BoardView projectId={projectId} epicId={epicId} view={view} />
-          : (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <p className="text-slate-400 text-sm mb-1">No project selected</p>
-                <p className="text-slate-300 text-xs">Use the selector above or create a project via MCP</p>
-              </div>
-            </div>
-          )
-        }
-      </main>
-    </div>
+      )}
+    </>
   )
 }
