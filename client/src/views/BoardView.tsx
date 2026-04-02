@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { DndContext, closestCenter } from '@dnd-kit/core'
+import { DndContext, closestCenter, useSensor, useSensors, PointerSensor } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -21,6 +21,9 @@ export function BoardView({ projectId }: Props) {
   const [view, setView] = useState<View>('board')
   const [filters, setFilters] = useState<Filters>(defaultFilters)
   const [swimlane, setSwimlane] = useState<Swimlane>('none')
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  )
 
   const { data: stories = [] } = useQuery({
     queryKey: ['stories', projectId],
@@ -37,14 +40,16 @@ export function BoardView({ projectId }: Props) {
     enabled: !!projectId,
   })
 
-  const { data: features = [] } = useQuery({
-    queryKey: ['features'],
+  const { data: features = [], isLoading: featuresLoading } = useQuery({
+    queryKey: ['features', projectId],
     queryFn: () => api.features.listAll(),
+    enabled: swimlane === 'epic' && !!projectId,
   })
-  // Build feature -> epic lookup
-  const featureToEpicId = Object.fromEntries(
-    (features as Feature[]).map(f => [f.id, f.epic_id])
-  )
+  // Build feature -> epic lookup; null signals "still loading for epic swimlane"
+  const featureToEpicId: Record<string, string> | null =
+    swimlane === 'epic' && featuresLoading
+      ? null
+      : Object.fromEntries((features as Feature[]).map(f => [f.id, f.epic_id]))
 
   const moveMutation = useMutation({
     mutationFn: ({ storyId, status }: { storyId: string; status: string }) =>
@@ -59,6 +64,9 @@ export function BoardView({ projectId }: Props) {
     },
     onError: (_err, _vars, ctx) => {
       queryClient.setQueryData(['stories', projectId], ctx?.prev)
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['stories', projectId] })
     },
   })
 
@@ -116,6 +124,7 @@ export function BoardView({ projectId }: Props) {
     }
 
     if (lane === 'epic') {
+      if (featureToEpicId === null) return [] // still loading
       const epicGroups = typedEpics
         .map(e => ({ key: e.id, label: `${e.short_id ?? ''} ${e.title}`.trim(), stories: storiesToGroup.filter(s => featureToEpicId[s.feature_id] === e.id) }))
         .filter(g => g.stories.length > 0)
@@ -156,12 +165,20 @@ export function BoardView({ projectId }: Props) {
   )
 
   if (view === 'board') {
+    if (swimlane === 'epic' && featureToEpicId === null) {
+      return (
+        <div className="h-full flex flex-col">
+          {toolbar}
+          <div className="p-6 text-slate-400 text-sm">Loading...</div>
+        </div>
+      )
+    }
     const groups = groupStories(filteredStories, swimlane)
     return (
       <div className="h-full flex flex-col">
         {toolbar}
         <div className="flex-1 overflow-auto">
-          <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             {groups.map(group => (
               <div key={group.key}>
                 {swimlane !== 'none' && group.label && (
