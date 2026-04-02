@@ -78,14 +78,14 @@ const WORKFLOWS = [
 
 const AGENTS = [
   { slug: 'pro-ject', name: 'Pro Ject', scope: 'Project management & requirements', color: '#f97316', avatar_emoji: '📋', skills: ['brainstorming', 'writing-plans'] },
-  { slug: 'arch-lee', name: 'Arch Lee', scope: 'Architecture & planning', color: '#6366f1', avatar_emoji: '🏛️', skills: ['brainstorming', 'writing-plans'] },
-  { slug: 'tess-ter', name: 'Tess Ter', scope: 'Testing & QA', color: '#10b981', avatar_emoji: '🧪', skills: ['test-driven-development'] },
+  { slug: 'arch-lee', name: 'Arch Lee', scope: 'Architecture & planning', color: '#6366f1', avatar_emoji: '🏛️', skills: ['brainstorming', 'writing-plans', 'dispatching-parallel-agents'] },
+  { slug: 'tess-ter', name: 'Tess Ter', scope: 'Testing & QA', color: '#10b981', avatar_emoji: '🧪', skills: ['test-driven-development', 'verification-before-completion'] },
   { slug: 'deb-ugg', name: 'Deb Ugg', scope: 'Debugging', color: '#f59e0b', avatar_emoji: '🐛', skills: ['systematic-debugging'] },
   { slug: 'rev-yu', name: 'Rev Yu', scope: 'Code review', color: '#3b82f6', avatar_emoji: '🔍', skills: ['requesting-code-review', 'receiving-code-review'] },
-  { slug: 'dee-ploy', name: 'Dee Ploy', scope: 'Deployment & merge', color: '#8b5cf6', avatar_emoji: '🚀', skills: ['finishing-a-development-branch'] },
-  { slug: 'dev-in', name: 'Dev In', scope: 'Backend implementation', color: '#64748b', avatar_emoji: '⚙️', skills: ['executing-plans'] },
+  { slug: 'dee-ploy', name: 'Dee Ploy', scope: 'Deployment & merge', color: '#8b5cf6', avatar_emoji: '🚀', skills: ['finishing-a-development-branch', 'using-git-worktrees'] },
+  { slug: 'dev-in', name: 'Dev In', scope: 'Backend implementation', color: '#64748b', avatar_emoji: '⚙️', skills: ['executing-plans', 'subagent-driven-development'] },
   { slug: 'fron-tina', name: 'Fron Tina', scope: 'Frontend implementation', color: '#ec4899', avatar_emoji: '🎨', skills: ['frontend-design', 'executing-plans'] },
-  { slug: 'doc-tor', name: 'Doc Tor', scope: 'Documentation', color: '#0ea5e9', avatar_emoji: '📝', skills: ['doc-coauthoring'] },
+  { slug: 'doc-tor', name: 'Doc Tor', scope: 'Documentation', color: '#0ea5e9', avatar_emoji: '📝', skills: ['doc-coauthoring', 'writing-skills'] },
 ]
 
 export function seed(db: Database.Database): void {
