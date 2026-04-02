@@ -77,6 +77,7 @@ const WORKFLOWS = [
 ]
 
 const AGENTS = [
+  { slug: 'pro-ject', name: 'Pro Ject', scope: 'Project management & requirements', color: '#f97316', avatar_emoji: '📋', skills: ['brainstorming', 'writing-plans'] },
   { slug: 'arch-lee', name: 'Arch Lee', scope: 'Architecture & planning', color: '#6366f1', avatar_emoji: '🏛️', skills: ['brainstorming', 'writing-plans'] },
   { slug: 'tess-ter', name: 'Tess Ter', scope: 'Testing & QA', color: '#10b981', avatar_emoji: '🧪', skills: ['test-driven-development'] },
   { slug: 'deb-ugg', name: 'Deb Ugg', scope: 'Debugging', color: '#f59e0b', avatar_emoji: '🐛', skills: ['systematic-debugging'] },

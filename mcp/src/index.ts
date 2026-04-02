@@ -37,6 +37,41 @@ server.tool(
   }
 )
 
+server.tool(
+  'list_projects',
+  'List all projects on the board',
+  {},
+  async () => {
+    const projects = await board.listProjects()
+    return { content: [{ type: 'text' as const, text: JSON.stringify(projects, null, 2) }] }
+  }
+)
+
+server.tool(
+  'create_project',
+  'Create a new project on the board. Use workflow_id: "standard" unless the user specifies otherwise.',
+  {
+    key: z.string().describe('Short uppercase identifier, e.g. PROJ or MYAPP'),
+    name: z.string().describe('Full project name'),
+    description: z.string().optional(),
+    workflow_id: z.enum(['light', 'standard', 'full']).default('standard'),
+  },
+  async (args) => {
+    const project = await board.createProject(args)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(project, null, 2) }] }
+  }
+)
+
+server.tool(
+  'list_epics',
+  'List all epics for a project',
+  { project_id: z.string() },
+  async ({ project_id }) => {
+    const epics = await board.listEpics(project_id)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(epics, null, 2) }] }
+  }
+)
+
 // ── Creating work ─────────────────────────────────────────────────
 
 server.tool(
