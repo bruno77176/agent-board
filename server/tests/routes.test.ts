@@ -1,6 +1,9 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, beforeAll, afterAll } from 'vitest'
 import express from 'express'
 import request from 'supertest'
+import os from 'os'
+import fs from 'fs'
+import path from 'path'
 import { getDb, closeDb } from '../src/db/index.js'
 import { seed } from '../src/db/seed.js'
 import { createRouter } from '../src/routes/index.js'
@@ -175,5 +178,50 @@ describe('Story links', () => {
     expect(res.status).toBe(200)
     expect(Array.isArray(res.body.links)).toBe(true)
     expect(res.body.links.length).toBeGreaterThan(0)
+  })
+})
+
+describe('GET /api/docs', () => {
+  let tmpDir: string
+
+  beforeAll(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'docs-test-'))
+    fs.writeFileSync(path.join(tmpDir, 'test.md'), '# Hello')
+    process.env.DOCS_PATH = tmpDir
+  })
+
+  afterAll(() => {
+    fs.rmSync(tmpDir, { recursive: true })
+    delete process.env.DOCS_PATH
+  })
+
+  beforeEach(() => closeDb())
+
+  it('lists .md files', async () => {
+    const app = buildApp()
+    const res = await request(app).get('/api/docs')
+    expect(res.status).toBe(200)
+    expect(res.body).toContain('test.md')
+  })
+
+  it('serves a valid .md file', async () => {
+    const app = buildApp()
+    const res = await request(app).get('/api/docs/test.md')
+    expect(res.status).toBe(200)
+    expect(res.text).toContain('# Hello')
+  })
+
+  it('rejects path traversal attempts with 403', async () => {
+    const app = buildApp()
+    // Use %2f encoding so Express doesn't normalize the path before it reaches the handler
+    const res = await request(app).get('/api/docs/..%2fpackage.json')
+    expect(res.status).toBe(403)
+  })
+
+  it('rejects non-.md files with 403', async () => {
+    fs.writeFileSync(path.join(tmpDir, 'secret.json'), '{"key":"value"}')
+    const app = buildApp()
+    const res = await request(app).get('/api/docs/secret.json')
+    expect(res.status).toBe(403)
   })
 })
