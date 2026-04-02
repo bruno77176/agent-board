@@ -68,9 +68,27 @@ export const SCHEMA = `
     comment TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+
 `;
 
 export const MIGRATIONS = [
   `ALTER TABLE stories ADD COLUMN acceptance_criteria TEXT NOT NULL DEFAULT '[]'`,
   `ALTER TABLE agents ADD COLUMN skills TEXT NOT NULL DEFAULT '[]'`,
+  `CREATE TABLE IF NOT EXISTS id_sequences (project_id TEXT NOT NULL, type TEXT NOT NULL, seq INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (project_id, type))`,
+  `ALTER TABLE epics ADD COLUMN short_id TEXT`,
+  `ALTER TABLE features ADD COLUMN short_id TEXT`,
+  `ALTER TABLE stories ADD COLUMN short_id TEXT`,
+  `ALTER TABLE epics ADD COLUMN start_date TEXT`,
+  `ALTER TABLE epics ADD COLUMN end_date TEXT`,
+  `CREATE TABLE IF NOT EXISTS story_links (
+    id TEXT PRIMARY KEY,
+    from_story_id TEXT NOT NULL REFERENCES stories(id) ON DELETE CASCADE,
+    to_story_id TEXT NOT NULL REFERENCES stories(id) ON DELETE CASCADE,
+    link_type TEXT NOT NULL CHECK (link_type IN ('blocks', 'duplicates', 'relates_to')),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    CHECK (from_story_id != to_story_id),
+    UNIQUE (from_story_id, to_story_id, link_type)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_story_links_from ON story_links(from_story_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_story_links_to ON story_links(to_story_id)`,
 ]
