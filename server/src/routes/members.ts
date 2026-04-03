@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import Database from 'better-sqlite3'
+import { requireAdmin } from '../middleware/auth.js'
 
 export function membersRouter(db: Database.Database): Router {
   const router = Router({ mergeParams: true })
@@ -20,10 +21,8 @@ export function membersRouter(db: Database.Database): Router {
   })
 
   // Add member by email
-  router.post('/', (req, res) => {
+  router.post('/', requireAdmin, (req, res) => {
     const params = req.params as any
-    const user = req.user as any
-    if (user.role !== 'admin') return res.status(403).json({ error: 'Admin only' })
     const { email } = req.body
     if (!email) return res.status(400).json({ error: 'email required' })
     const project = db.prepare('SELECT * FROM projects WHERE id = ? OR key = ?')
@@ -41,15 +40,14 @@ export function membersRouter(db: Database.Database): Router {
   })
 
   // Remove member
-  router.delete('/:userId', (req, res) => {
+  router.delete('/:userId', requireAdmin, (req, res) => {
     const params = req.params as any
-    const user = req.user as any
-    if (user.role !== 'admin') return res.status(403).json({ error: 'Admin only' })
     const project = db.prepare('SELECT * FROM projects WHERE id = ? OR key = ?')
       .get(params.id, params.id) as any
     if (!project) return res.status(404).json({ error: 'Project not found' })
-    db.prepare('DELETE FROM project_members WHERE project_id = ? AND user_id = ?')
+    const result = db.prepare('DELETE FROM project_members WHERE project_id = ? AND user_id = ?')
       .run(project.id, req.params.userId)
+    if (result.changes === 0) return res.status(404).json({ error: 'Member not found' })
     res.json({ ok: true })
   })
 

@@ -29,9 +29,9 @@ export function adminRouter(db: Database.Database): Router {
     if (role   !== undefined) { updates.push('role = ?');   values.push(role)   }
     if (updates.length === 0) return res.status(400).json({ error: 'No fields to update' })
     values.push(req.params.id)
-    db.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).run(...values)
+    const result = db.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).run(...values)
+    if (result.changes === 0) return res.status(404).json({ error: 'User not found' })
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id)
-    if (!user) return res.status(404).json({ error: 'User not found' })
     res.json(user)
   })
 
