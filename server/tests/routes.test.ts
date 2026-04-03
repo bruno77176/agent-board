@@ -32,6 +32,25 @@ function buildApp() {
   return app
 }
 
+function buildAppWithMember() {
+  const db = getDb(':memory:')
+  seed(db)
+  db.prepare(
+    'INSERT INTO users (email, name, provider, provider_id, role, status) VALUES (?, ?, ?, ?, ?, ?)'
+  ).run('member@test.com', 'Member', 'github', '888', 'member', 'active')
+  const user = db.prepare('SELECT * FROM users WHERE provider_id = ?').get('888') as any
+
+  const app = express()
+  app.use(express.json())
+  app.use((req: any, _res: any, next: any) => {
+    req.user = user
+    req.isAuthenticated = () => true
+    next()
+  })
+  app.use('/api', createRouter(db, noop))
+  return app
+}
+
 describe('GET /api/projects', () => {
   beforeEach(() => closeDb())
   it('returns empty array initially', async () => {
@@ -195,6 +214,40 @@ describe('Story links', () => {
     expect(res.status).toBe(200)
     expect(Array.isArray(res.body.links)).toBe(true)
     expect(res.body.links.length).toBeGreaterThan(0)
+  })
+})
+
+describe('PATCH /api/projects/:id', () => {
+  beforeEach(() => closeDb())
+
+  it('returns 403 for non-admin user', async () => {
+    const app = buildAppWithMember()
+    const res = await request(app).patch('/api/projects/BOARD').send({ is_public: 1 })
+    expect(res.status).toBe(403)
+  })
+
+  it('returns 404 for unknown project', async () => {
+    const res = await request(buildApp()).patch('/api/projects/NONEXISTENT').send({ is_public: 1 })
+    expect(res.status).toBe(404)
+  })
+
+  it('admin can toggle is_public', async () => {
+    const app = buildApp()
+    const proj = await request(app).post('/api/projects').send({ key: 'BOARD', name: 'Board', workflow_id: 'standard' })
+    const res = await request(app).patch(`/api/projects/${proj.body.key}`).send({ is_public: 1 })
+    expect(res.status).toBe(200)
+    expect(res.body.is_public).toBe(1)
+  })
+})
+
+describe('GET /api/projects membership filter', () => {
+  beforeEach(() => closeDb())
+
+  it('member with no membership sees no private projects', async () => {
+    const res = await request(buildAppWithMember()).get('/api/projects')
+    expect(res.status).toBe(200)
+    // All seeded projects have is_public=0 and member has no memberships
+    expect(res.body).toEqual([])
   })
 })
 

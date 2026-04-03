@@ -128,8 +128,9 @@ export function projectsRouter(db: Database.Database, broadcast: Broadcast): Rou
     const user = req.user as any
     if (user.role !== 'admin') return res.status(403).json({ error: 'Admin only' })
     const { is_public } = req.body
-    db.prepare('UPDATE projects SET is_public = ? WHERE id = ? OR key = ?')
+    const result = db.prepare('UPDATE projects SET is_public = ? WHERE id = ? OR key = ?')
       .run(is_public ? 1 : 0, req.params.id, req.params.id)
+    if (result.changes === 0) return res.status(404).json({ error: 'Not found' })
     const project = db.prepare('SELECT * FROM projects WHERE id = ? OR key = ?')
       .get(req.params.id, req.params.id)
     broadcast({ type: 'project.updated', data: project })
