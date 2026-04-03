@@ -1,18 +1,30 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import express from 'express'
 import request from 'supertest'
+import session from 'express-session'
+import passport from 'passport'
 import { getDb, closeDb } from '../src/db/index.js'
 import { seed } from '../src/db/seed.js'
+import { authRouter } from '../src/routes/auth.js'
 
 function buildApp() {
   const db = getDb(':memory:')
   seed(db)
   const app = express()
   app.use(express.json())
-  // Mock /me endpoint for unit testing (no actual passport session)
-  app.get('/api/auth/me', (req, res) => {
-    res.status(401).json({ error: 'Not authenticated' })
+  app.use(session({
+    secret: 'test-secret',
+    resave: false,
+    saveUninitialized: false,
+  }))
+  app.use(passport.initialize())
+  app.use(passport.session())
+  passport.serializeUser((user: any, done) => done(null, user.id))
+  passport.deserializeUser((id: unknown, done) => {
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id as number)
+    done(null, user ?? false)
   })
+  app.use('/api/auth', authRouter())
   return app
 }
 

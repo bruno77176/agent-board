@@ -21,7 +21,7 @@ export function authRouter(): Router {
 
   // Current user
   router.get('/me', (req, res) => {
-    if (!(req as any).isAuthenticated()) return res.status(401).json({ error: 'Not authenticated' })
+    if (!req.isAuthenticated()) return res.status(401).json({ error: 'Not authenticated' })
     res.json(req.user)
   })
 
