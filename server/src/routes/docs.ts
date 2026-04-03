@@ -5,12 +5,25 @@ import path from 'path'
 export function docsRouter(): Router {
   const router = Router()
 
-  // GET /api/docs — list all .md files
-  router.get('/', (_req, res) => {
+  // GET /api/docs — list all .md files (optionally filtered by ?project=KEY)
+  router.get('/', (req, res) => {
     const DOCS_ROOT = process.env.DOCS_PATH ?? path.resolve(process.cwd(), '..', 'docs')
     if (!fs.existsSync(DOCS_ROOT)) return res.json([])
-    const files = walk(DOCS_ROOT)
-      .map(f => path.relative(DOCS_ROOT, f).replace(/\\/g, '/'))
+    const ROOT_WITH_SEP = DOCS_ROOT.endsWith(path.sep) ? DOCS_ROOT : DOCS_ROOT + path.sep
+    const { project } = req.query
+    let searchRoot = DOCS_ROOT
+    if (project && typeof project === 'string') {
+      // Validate project doesn't contain path traversal
+      if (project.includes('..') || project.includes('/') || project.includes('\\')) {
+        return res.status(400).json({ error: 'Invalid project' })
+      }
+      searchRoot = path.join(DOCS_ROOT, project)
+      if (!searchRoot.startsWith(ROOT_WITH_SEP)) {
+        return res.status(400).json({ error: 'Invalid project' })
+      }
+      if (!fs.existsSync(searchRoot)) return res.json([])
+    }
+    const files = walk(searchRoot).map(f => path.relative(DOCS_ROOT, f).replace(/\\/g, '/'))
     res.json(files)
   })
 

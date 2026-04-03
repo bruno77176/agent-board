@@ -73,6 +73,10 @@ export function Sidebar({ onCreateClick }: SidebarProps) {
               <Map className="w-3.5 h-3.5" />
               Roadmap
             </NavLink>
+            <NavLink to={`/${project.key}/docs`} className={navLinkClass}>
+              <FileText className="w-3.5 h-3.5" />
+              Docs
+            </NavLink>
           </div>
         </>
       )}

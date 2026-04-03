@@ -34,6 +34,7 @@ function AppLayout({ onCreateClick }: { onCreateClick: () => void }) {
           <Route path="/team" element={<TeamView />} />
           <Route path="/team/:agentSlug" element={<AgentProfileView />} />
           <Route path="/docs" element={<DocsView />} />
+          <Route path="/:projectKey/docs" element={<ProjectDocsRoute />} />
           <Route path="/" element={<Navigate to="/team" replace />} />
           <Route path="*" element={<WelcomeScreen />} />
         </Routes>
@@ -65,6 +66,11 @@ function ProjectRoutes({ view }: { view: string }) {
   if (view === 'roadmap') return <RoadmapView projectId={project.id} />
 
   return null
+}
+
+function ProjectDocsRoute() {
+  const { projectKey } = useParams<{ projectKey: string }>()
+  return <DocsView projectKey={projectKey} />
 }
 
 function WelcomeScreen() {
