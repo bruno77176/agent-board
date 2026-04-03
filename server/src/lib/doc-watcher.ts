@@ -13,7 +13,7 @@ export function startDocWatcher(db: Database.Database, docsRoot: string, broadca
   // Dynamic import of chokidar (ESM-compatible)
   import('chokidar').then(({ default: chokidar }) => {
     const watcher = chokidar.watch(path.join(docsRoot, '**', '*.md'), {
-      ignoreInitial: true,
+      ignoreInitial: false,
       persistent: false,
       awaitWriteFinish: { stabilityThreshold: 500, pollInterval: 100 },
     })
