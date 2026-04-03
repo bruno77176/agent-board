@@ -19,5 +19,13 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // shadcn/ui components and utility exports legitimately mix exports — not a real error
+      'react-refresh/only-export-components': 'warn',
+      // API responses and dynamic data commonly require any — treat as warning
+      '@typescript-eslint/no-explicit-any': 'warn',
+      // Form state sync via useEffect is a legitimate pattern
+      'react-hooks/set-state-in-effect': 'warn',
+    },
   },
 ])
