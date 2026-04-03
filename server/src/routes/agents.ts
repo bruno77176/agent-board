@@ -40,5 +40,22 @@ export function agentsRouter(db: Database.Database): Router {
     }
   })
 
+  router.patch('/:slug', (req, res) => {
+    const agent = db.prepare('SELECT * FROM agents WHERE slug = ?').get(req.params.slug) as any
+    if (!agent) return res.status(404).json({ error: 'Not found' })
+    const { name, scope, color, avatar_emoji } = req.body
+    const updates: string[] = []
+    const params: any[] = []
+    if (name !== undefined) { updates.push('name = ?'); params.push(name) }
+    if (scope !== undefined) { updates.push('scope = ?'); params.push(scope) }
+    if (color !== undefined) { updates.push('color = ?'); params.push(color) }
+    if (avatar_emoji !== undefined) { updates.push('avatar_emoji = ?'); params.push(avatar_emoji) }
+    if (updates.length === 0) return res.json({ ...agent, skills: JSON.parse(agent.skills ?? '[]') })
+    params.push(agent.id)
+    db.prepare(`UPDATE agents SET ${updates.join(', ')} WHERE id = ?`).run(...params)
+    const updated = db.prepare('SELECT * FROM agents WHERE id = ?').get(agent.id) as any
+    res.json({ ...updated, skills: JSON.parse(updated.skills ?? '[]') })
+  })
+
   return router
 }
