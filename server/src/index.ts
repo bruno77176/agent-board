@@ -8,6 +8,8 @@ import passport from 'passport'
 import { getDb } from './db/index.js'
 import { seed } from './db/seed.js'
 import { createRouter } from './routes/index.js'
+import { authRouter } from './routes/auth.js'
+import { requireAuth } from './middleware/auth.js'
 import { createWsServer } from './ws/index.js'
 import { startDocWatcher } from './lib/doc-watcher.js'
 import { registerStrategies } from './passport-strategies.js'
@@ -59,7 +61,8 @@ passport.deserializeUser((id: unknown, done) => {
 registerStrategies(db)
 
 const broadcast = createWsServer(server)
-app.use('/api', createRouter(db, broadcast))
+app.use('/api/auth', authRouter())
+app.use('/api', requireAuth, createRouter(db, broadcast))
 
 if (process.env.NODE_ENV === 'production') {
   const clientDist = path.join(__dirname, '../../client/dist')

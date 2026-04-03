@@ -8,13 +8,11 @@ import { featuresRouter } from './features.js'
 import { storiesRouter } from './stories.js'
 import { eventsRouter } from './events.js'
 import { docsRouter } from './docs.js'
-import { authRouter } from './auth.js'
 
 export type { Broadcast } from '../ws/index.js'
 
 export function createRouter(db: Database.Database, broadcast: import('../ws/index.js').Broadcast): Router {
   const router = Router()
-  router.use('/auth', authRouter())
   router.use('/projects', projectsRouter(db, broadcast))
   router.use('/agents', agentsRouter(db))
   router.use('/workflows', workflowsRouter(db))

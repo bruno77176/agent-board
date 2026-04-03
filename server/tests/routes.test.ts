@@ -14,8 +14,20 @@ const noop: Broadcast = () => {}
 function buildApp() {
   const db = getDb(':memory:')
   seed(db)
+  // Insert a test admin user
+  db.prepare(
+    'INSERT INTO users (email, name, provider, provider_id, role, status) VALUES (?, ?, ?, ?, ?, ?)'
+  ).run('admin@test.com', 'Admin', 'github', '999', 'admin', 'active')
+  const user = db.prepare('SELECT * FROM users WHERE provider_id = ?').get('999') as any
+
   const app = express()
   app.use(express.json())
+  // Inject user into req before hitting middleware
+  app.use((req: any, _res: any, next: any) => {
+    req.user = user
+    req.isAuthenticated = () => true
+    next()
+  })
   app.use('/api', createRouter(db, noop))
   return app
 }
