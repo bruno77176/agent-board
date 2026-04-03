@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from './lib/api'
 import type { Project } from './lib/api'
 import { useBoard } from './hooks/useBoard'
+import { useAuth } from './contexts/AuthContext'
 import { Sidebar } from './components/Sidebar'
 import { BoardView } from './views/BoardView'
 import { BacklogView } from './views/BacklogView'
@@ -16,6 +17,14 @@ import { AgentProfileView } from './views/AgentProfileView'
 import { DocsView } from './views/DocsView'
 import { CreateModal } from './components/CreateModal'
 import { RoadmapView } from './views/RoadmapView'
+import { LoginPage } from './pages/LoginPage'
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useAuth()
+  if (isLoading) return <div className="min-h-screen bg-slate-50" />
+  if (!user) return <Navigate to="/login" replace />
+  return <>{children}</>
+}
 
 // Layout wrapper that renders Sidebar + main content area
 function AppLayout({ onCreateClick }: { onCreateClick: () => void }) {
@@ -96,9 +105,16 @@ export default function App() {
   const [createOpen, setCreateOpen] = useState(false)
 
   return (
-    <>
-      <AppLayout onCreateClick={() => setCreateOpen(true)} />
-      {createOpen && <CreateModal onClose={() => setCreateOpen(false)} />}
-    </>
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="*" element={
+        <ProtectedRoute>
+          <>
+            <AppLayout onCreateClick={() => setCreateOpen(true)} />
+            {createOpen && <CreateModal onClose={() => setCreateOpen(false)} />}
+          </>
+        </ProtectedRoute>
+      } />
+    </Routes>
   )
 }
