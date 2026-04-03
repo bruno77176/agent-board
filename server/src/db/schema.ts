@@ -69,6 +69,27 @@ export const SCHEMA = `
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
+  CREATE TABLE IF NOT EXISTS users (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    email       TEXT NOT NULL UNIQUE,
+    name        TEXT NOT NULL,
+    avatar_url  TEXT,
+    provider    TEXT NOT NULL CHECK(provider IN ('google','github')),
+    provider_id TEXT NOT NULL,
+    role        TEXT NOT NULL DEFAULT 'member' CHECK(role IN ('admin','member')),
+    status      TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','active')),
+    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(provider, provider_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS project_members (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id  TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(project_id, user_id)
+  );
+
 `;
 
 export const MIGRATIONS = [
@@ -91,4 +112,5 @@ export const MIGRATIONS = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_story_links_from ON story_links(from_story_id)`,
   `CREATE INDEX IF NOT EXISTS idx_story_links_to ON story_links(to_story_id)`,
+  `ALTER TABLE projects ADD COLUMN is_public INTEGER NOT NULL DEFAULT 0`,
 ]

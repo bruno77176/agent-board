@@ -28,4 +28,21 @@ describe('database schema', () => {
     expect(names).toContain('target_id')
     expect(names).not.toContain('story_id')
   })
+
+  it('creates users and project_members tables', () => {
+    const db = getDb(':memory:')
+    const tables = db.prepare(
+      `SELECT name FROM sqlite_master WHERE type='table'`
+    ).all().map((r: any) => r.name)
+    expect(tables).toContain('users')
+    expect(tables).toContain('project_members')
+    closeDb()
+  })
+
+  it('projects table has is_public column', () => {
+    const db = getDb(':memory:')
+    const cols = db.prepare(`PRAGMA table_info(projects)`).all().map((r: any) => r.name)
+    expect(cols).toContain('is_public')
+    closeDb()
+  })
 })
