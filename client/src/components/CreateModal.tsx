@@ -6,13 +6,95 @@ import type { Project, Epic, Feature } from '@/lib/api'
 
 type CreateType = 'epic' | 'feature' | 'story'
 
+const TEMPLATES: Record<CreateType, string> = {
+  epic: `## Context
+[Describe the current situation / problem being solved]
+
+## Objective
+[What are we trying to achieve?]
+
+## Value
+[Why does it matter? Business impact]
+
+---
+
+## Scope
+
+**In scope:**
+-
+
+**Out of scope:**
+-
+
+---
+
+## Success Criteria
+- [Metric 1]
+- [Metric 2]
+- [Metric 3]
+
+---
+
+## Stakeholders
+- Product:
+- Tech:
+- Business:  `,
+
+  feature: `## Description
+This feature enables: [what it unlocks functionally]
+
+---
+
+## User Value
+[Who benefits and how?]
+
+---
+
+## High-Level Acceptance Criteria
+- [End-to-end functionality works]
+- [Handles key edge cases]
+- [Integrated with relevant systems]
+
+---
+
+## Dependencies
+- [System / team / API]
+
+---
+
+## Risks / Assumptions
+- `,
+
+  story: `## User Story
+As a [user/system]
+I want [capability]
+So that [value]
+
+---
+
+## Acceptance Criteria
+
+### Scenario 1
+- Given [context]
+- When [action]
+- Then [expected result]
+
+---
+
+## Definition of Done
+- [ ] Code implemented
+- [ ] Tests added (unit / e2e)
+- [ ] Code reviewed
+- [ ] Deployed / usable`,
+}
+
 interface Props { onClose: () => void }
 
 export function CreateModal({ onClose }: Props) {
   const queryClient = useQueryClient()
   const [type, setType] = useState<CreateType>('story')
   const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
+  const [description, setDescription] = useState(TEMPLATES.story)
   const [projectId, setProjectId] = useState('')
   const [epicId, setEpicId] = useState('')
   const [featureId, setFeatureId] = useState('')
@@ -91,7 +173,7 @@ export function CreateModal({ onClose }: Props) {
 
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-lg w-full max-w-md mx-4">
+      <div className="bg-white rounded-xl shadow-lg w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
           <h2 className="text-sm font-semibold text-slate-800">Create</h2>
@@ -107,7 +189,7 @@ export function CreateModal({ onClose }: Props) {
               <button
                 key={t}
                 type="button"
-                onClick={() => { setType(t); setError('') }}
+                onClick={() => { setType(t); setDescription(TEMPLATES[t]); setError('') }}
                 className={`flex-1 text-xs font-medium py-1.5 rounded-md transition-colors capitalize ${
                   type === t ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
                 }`}
@@ -183,12 +265,12 @@ export function CreateModal({ onClose }: Props) {
 
           {/* Description */}
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Description <span className="text-slate-400 font-normal">(optional)</span></label>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Description</label>
             <textarea
               value={description}
               onChange={e => setDescription(e.target.value)}
-              rows={2}
-              className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              rows={12}
+              className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y font-mono"
             />
           </div>
 
