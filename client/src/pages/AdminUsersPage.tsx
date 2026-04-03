@@ -7,11 +7,10 @@ export function AdminUsersPage() {
   const { isAdmin } = useAuth()
   const queryClient = useQueryClient()
 
-  if (!isAdmin) return <Navigate to="/" replace />
-
   const { data: users = [] } = useQuery({
     queryKey: ['admin', 'users'],
     queryFn: () => adminApi.listUsers(),
+    enabled: isAdmin,
   })
 
   const approve = useMutation({
@@ -21,6 +20,8 @@ export function AdminUsersPage() {
       queryClient.invalidateQueries({ queryKey: ['admin', 'pending-count'] })
     },
   })
+
+  if (!isAdmin) return <Navigate to="/" replace />
 
   return (
     <div className="p-8 max-w-4xl mx-auto">
