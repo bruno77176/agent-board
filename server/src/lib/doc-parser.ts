@@ -40,11 +40,16 @@ function parseFrontmatter(content: string): { data: Record<string, string>; body
 /**
  * Parse markdown body into a board item tree: epic → features → stories.
  * Rules:
- *   H1 (#)  → epic title (first one wins)
- *   H2 (##) → feature
- *   H3 (###) → story under current feature
- *   Lines starting with "- [ ]", "- [x]", "**Step N:**", or "**Step N.**" under an H3 → acceptance criteria
+ *   H1 (#)   → epic title (first one wins; strips trailing " Implementation Plan")
+ *   H2 (##)  → feature
+ *   H3 (###) → story under current feature. If no ## parent exists yet, a synthetic
+ *              "Tasks" feature is auto-created so orphan stories (e.g. from writing-plans
+ *              which uses ### Task N: without any ## grouping) are never lost.
+ *   Lines starting with "- [ ]" or "- [x]" → acceptance criteria
  *   All other content under a heading accumulates as its description
+ *
+ * NOTE: "**Step N:**" lines are NOT acceptance criteria — they are plan implementation
+ * steps and are treated as description content instead.
  */
 export function parseDocStructure(markdown: string): Omit<ParsedDoc, 'project_key'> | null {
   const lines = markdown.split('\n')
@@ -63,7 +68,7 @@ export function parseDocStructure(markdown: string): Omit<ParsedDoc, 'project_ke
     if (currentStory && currentFeature) {
       const desc = currentStory.descLines.join('\n').trim()
       const criteria = currentStory.criteriaLines
-        .map(l => l.replace(/^-\s*\[[ x]\]\s*/, '').replace(/^\*\*Step\s*\d+[:.]?\*\*\s*/i, '').trim())
+        .map(l => l.replace(/^-\s*\[[ x]\]\s*/, '').trim())
         .filter(Boolean)
         .map(text => ({ id: randomUUID(), text, checked: false }))
       currentFeature.stories.push({
@@ -83,18 +88,21 @@ export function parseDocStructure(markdown: string): Omit<ParsedDoc, 'project_ke
     }
   }
 
-  const isAcceptanceCriteriaLine = (line: string) =>
-    /^-\s*\[[ x]\]/.test(line) || /^\*\*Step\s*\d+[:.]?\*\*/i.test(line)
-
   for (const line of lines) {
     if (line.startsWith('# ') && !epicTitle) {
-      epicTitle = line.slice(2).trim()
+      // Strip common plan-doc suffixes so the epic title is clean
+      epicTitle = line.slice(2).trim().replace(/\s+Implementation Plan$/i, '').trim()
     } else if (line.startsWith('## ')) {
       pushStory()
       pushFeature()
       currentFeature = { title: line.slice(3).trim(), descLines: [], stories: [] }
-    } else if (line.startsWith('### ') && currentFeature) {
+    } else if (line.startsWith('### ')) {
       pushStory()
+      // Auto-create a synthetic feature for orphan stories (writing-plans style docs
+      // use ### Task N: directly under H1 with no ## grouping)
+      if (!currentFeature) {
+        currentFeature = { title: 'Tasks', descLines: [], stories: [] }
+      }
       currentStory = {
         title: line.slice(4).trim(),
         description: '',
@@ -104,7 +112,8 @@ export function parseDocStructure(markdown: string): Omit<ParsedDoc, 'project_ke
         criteriaLines: [],
       }
     } else if (currentStory) {
-      if (isAcceptanceCriteriaLine(line.trim())) {
+      // Only real checkboxes count as acceptance criteria
+      if (/^-\s*\[[ x]\]/.test(line.trim())) {
         currentStory.criteriaLines.push(line.trim())
       } else if (line.trim()) {
         currentStory.descLines.push(line.trim())
@@ -132,6 +141,8 @@ export function parseDocStructure(markdown: string): Omit<ParsedDoc, 'project_ke
 
 /**
  * Read a file, parse it, and create board items. Idempotent — skips existing items by title.
+ * Safe to call on both new files (add) and updated files (change): existing epics/features/stories
+ * are reused; only genuinely new items are inserted.
  */
 export async function syncDocToBoard(
   filePath: string,
@@ -157,25 +168,25 @@ export async function syncDocToBoard(
     return { created: false, message: `Project "${data.project}" not found` }
   }
 
-  // Idempotency: check if epic already exists
+  // Get or create epic (don't bail on existing — allow adding new features/stories on file change)
+  let epicId: string
   const existingEpic = db.prepare('SELECT * FROM epics WHERE project_id = ? AND title = ?')
     .get(project.id, structure.epic.title) as any
-  if (existingEpic) {
-    return { created: false, message: `Epic "${structure.epic.title}" already exists — skipped` }
-  }
 
-  // Create epic
-  const epicId = randomUUID()
-  const epicShortId = nextShortId(db, project.id, 'epic')
-  db.prepare('INSERT INTO epics (id, project_id, title, description, short_id) VALUES (?, ?, ?, ?, ?)')
-    .run(epicId, project.id, structure.epic.title, structure.epic.description || null, epicShortId)
-  const epic = db.prepare('SELECT * FROM epics WHERE id = ?').get(epicId)
-  broadcast({ type: 'epic.created', data: epic })
+  if (existingEpic) {
+    epicId = existingEpic.id
+  } else {
+    epicId = randomUUID()
+    const epicShortId = nextShortId(db, project.id, 'epic')
+    db.prepare('INSERT INTO epics (id, project_id, title, description, short_id) VALUES (?, ?, ?, ?, ?)')
+      .run(epicId, project.id, structure.epic.title, structure.epic.description || null, epicShortId)
+    const epic = db.prepare('SELECT * FROM epics WHERE id = ?').get(epicId)
+    broadcast({ type: 'epic.created', data: epic })
+  }
 
   let totalStories = 0
 
   for (const feat of structure.features) {
-    // Idempotency for feature
     const existingFeat = db.prepare('SELECT * FROM features WHERE epic_id = ? AND title = ?')
       .get(epicId, feat.title) as any
     const featId = existingFeat?.id ?? randomUUID()
@@ -206,7 +217,7 @@ export async function syncDocToBoard(
     }
   }
 
-  const msg = `Synced: Epic "${structure.epic.title}", ${structure.features.length} features, ${totalStories} stories`
+  const msg = `Synced: Epic "${structure.epic.title}", ${structure.features.length} features, ${totalStories} new stories`
   console.log('[doc-sync]', msg)
-  return { created: true, message: msg }
+  return { created: totalStories > 0 || !existingEpic, message: msg }
 }

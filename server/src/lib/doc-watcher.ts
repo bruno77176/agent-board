@@ -18,17 +18,21 @@ export function startDocWatcher(db: Database.Database, docsRoot: string, broadca
       awaitWriteFinish: { stabilityThreshold: 500, pollInterval: 100 },
     })
 
-    watcher.on('add', async (filePath: string) => {
-      console.log('[doc-watcher] New doc detected:', filePath)
+    async function handleFile(filePath: string) {
+      console.log('[doc-watcher] Processing:', filePath)
       try {
         const result = await syncDocToBoard(filePath, db, broadcast)
         if (result.created) {
           broadcast({ type: 'doc.synced', data: { path: filePath, message: result.message } })
         }
+        console.log('[doc-watcher]', result.message)
       } catch (err) {
         console.error('[doc-watcher] Error processing', filePath, err)
       }
-    })
+    }
+
+    watcher.on('add', handleFile)
+    watcher.on('change', handleFile)
 
     console.log('[doc-watcher] Watching', docsRoot)
   }).catch(err => {
