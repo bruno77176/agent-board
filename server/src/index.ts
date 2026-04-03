@@ -2,6 +2,9 @@ import express from 'express'
 import cors from 'cors'
 import path from 'path'
 import { createServer } from 'http'
+import session from 'express-session'
+import BetterSqliteStore from 'better-sqlite3-session-store'
+import passport from 'passport'
 import { getDb } from './db/index.js'
 import { seed } from './db/seed.js'
 import { createRouter } from './routes/index.js'
@@ -17,6 +20,32 @@ seed(db)
 
 app.use(cors())
 app.use(express.json())
+
+const SqliteStore = BetterSqliteStore(session)
+
+app.use(session({
+  store: new SqliteStore({ client: db }),
+  secret: process.env.SESSION_SECRET ?? 'dev-secret-change-in-prod',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  },
+}))
+app.use(passport.initialize())
+app.use(passport.session())
+
+passport.serializeUser((user: any, done) => done(null, user.id))
+passport.deserializeUser((id: number, done) => {
+  try {
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id)
+    done(null, user ?? false)
+  } catch (err) {
+    done(err)
+  }
+})
 
 const broadcast = createWsServer(server)
 app.use('/api', createRouter(db, broadcast))
