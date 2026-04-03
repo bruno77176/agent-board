@@ -12,7 +12,7 @@ describe('seed', () => {
     expect(workflows).toHaveLength(3)
   })
 
-  it('inserts 8 agents', () => {
+  it('inserts 10 agents', () => {
     const db = getDb(':memory:')
     seed(db)
     const agents = db.prepare('SELECT slug FROM agents').all() as {slug:string}[]
@@ -25,6 +25,7 @@ describe('seed', () => {
     expect(slugs).toContain('dev-in')
     expect(slugs).toContain('fron-tina')
     expect(slugs).toContain('doc-tor')
+    expect(slugs).toContain('pip-lynn')
   })
 
   it('is idempotent (safe to run twice)', () => {
@@ -32,6 +33,6 @@ describe('seed', () => {
     seed(db)
     seed(db)
     const agents = db.prepare('SELECT * FROM agents').all()
-    expect(agents).toHaveLength(9)
+    expect(agents).toHaveLength(10)
   })
 })

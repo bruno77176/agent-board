@@ -1,5 +1,21 @@
 import Database from 'better-sqlite3'
 import { randomUUID } from 'crypto'
+import fs from 'fs'
+import path from 'path'
+import os from 'os'
+
+/** Read a superpowers SKILL.md by name. Returns empty string if not found. */
+function readSuperpowersSkill(skillName: string): string {
+  const base = path.join(os.homedir(), '.claude', 'plugins', 'cache', 'claude-plugins-official', 'superpowers')
+  if (!fs.existsSync(base)) return ''
+  // Find the latest version directory
+  const versions = fs.readdirSync(base).sort().reverse()
+  for (const version of versions) {
+    const skillPath = path.join(base, version, 'skills', skillName, 'SKILL.md')
+    if (fs.existsSync(skillPath)) return fs.readFileSync(skillPath, 'utf-8')
+  }
+  return ''
+}
 
 const WORKFLOWS = [
   {
@@ -107,7 +123,7 @@ export function seed(db: Database.Database): void {
     insertAgent.run(randomUUID(), a.slug, a.name, a.scope, a.color, a.avatar_emoji, JSON.stringify(a.skills))
   }
 
-  // One-time migration: convert old string[] skills → {name, content}[] for any existing agents
+  // Migration 1: convert old string[] skills → {name, content}[]
   const allAgents = db.prepare('SELECT id, slug, skills FROM agents').all() as any[]
   const migrateSkills = db.prepare('UPDATE agents SET skills = ? WHERE id = ?')
   for (const agent of allAgents) {
@@ -116,5 +132,21 @@ export function seed(db: Database.Database): void {
       const migrated = parsed.map((s: string) => ({ name: s, content: '' }))
       migrateSkills.run(JSON.stringify(migrated), agent.id)
     }
+  }
+
+  // Migration 2: fill in content for superpowers: skills that have empty content
+  const allAgents2 = db.prepare('SELECT id, skills FROM agents').all() as any[]
+  for (const agent of allAgents2) {
+    const skills = JSON.parse(agent.skills ?? '[]') as { name: string; content: string }[]
+    let changed = false
+    const updated = skills.map(skill => {
+      if (skill.content === '' && skill.name.startsWith('superpowers:')) {
+        const skillName = skill.name.replace('superpowers:', '')
+        const content = readSuperpowersSkill(skillName)
+        if (content) { changed = true; return { ...skill, content } }
+      }
+      return skill
+    })
+    if (changed) migrateSkills.run(JSON.stringify(updated), agent.id)
   }
 }

@@ -47,10 +47,10 @@ describe('POST /api/projects', () => {
 
 describe('GET /api/agents', () => {
   beforeEach(() => closeDb())
-  it('returns 8 seeded agents', async () => {
+  it('returns seeded agents', async () => {
     const res = await request(buildApp()).get('/api/agents')
     expect(res.status).toBe(200)
-    expect(res.body).toHaveLength(9)
+    expect(res.body).toHaveLength(10)
   })
 })
 
