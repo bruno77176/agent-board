@@ -2,6 +2,7 @@ import { Router } from 'express'
 import Database from 'better-sqlite3'
 import { randomUUID } from 'crypto'
 import { Broadcast } from '../ws/index.js'
+import { membersRouter } from './members.js'
 
 export function projectsRouter(db: Database.Database, broadcast: Broadcast): Router {
   const router = Router()
@@ -136,6 +137,8 @@ export function projectsRouter(db: Database.Database, broadcast: Broadcast): Rou
     broadcast({ type: 'project.updated', data: project })
     res.json(project)
   })
+
+  router.use('/:id/members', membersRouter(db))
 
   return router
 }
