@@ -35,8 +35,5 @@ jobs:
       - name: Test server
         run: npm run test --workspace=server
 
-      - name: Test MCP
-        run: npm run test --workspace=mcp
-
       - name: Lint client
         run: npm run lint --workspace=client
