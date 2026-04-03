@@ -75,7 +75,7 @@ export function Sidebar({ onCreateClick }: SidebarProps) {
             </NavLink>
             <NavLink to={`/${project.key}/docs`} className={navLinkClass}>
               <FileText className="w-3.5 h-3.5" />
-              Docs
+              Superpowers Docs
             </NavLink>
           </div>
         </>
@@ -86,10 +86,6 @@ export function Sidebar({ onCreateClick }: SidebarProps) {
         <NavLink to="/team" className={navLinkClass}>
           <Users className="w-3.5 h-3.5" />
           Team
-        </NavLink>
-        <NavLink to="/docs" className={navLinkClass}>
-          <FileText className="w-3.5 h-3.5" />
-          Docs
         </NavLink>
       </div>
 
