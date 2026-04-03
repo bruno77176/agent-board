@@ -18,10 +18,17 @@ const PORT = process.env.PORT || 3000
 const db = getDb()
 seed(db)
 
-app.use(cors())
+app.use(cors({
+  origin: process.env.BASE_URL ?? 'http://localhost:5173',
+  credentials: true,
+}))
 app.use(express.json())
 
 const SqliteStore = BetterSqliteStore(session)
+
+if (!process.env.SESSION_SECRET) {
+  console.warn('⚠️  SESSION_SECRET not set — using insecure dev default. Set it in production!')
+}
 
 app.use(session({
   store: new SqliteStore({ client: db }),
@@ -31,6 +38,7 @@ app.use(session({
   cookie: {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax' as const,
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   },
 }))
@@ -38,9 +46,9 @@ app.use(passport.initialize())
 app.use(passport.session())
 
 passport.serializeUser((user: any, done) => done(null, user.id))
-passport.deserializeUser((id: number, done) => {
+passport.deserializeUser((id: unknown, done) => {
   try {
-    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id)
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id as number)
     done(null, user ?? false)
   } catch (err) {
     done(err)
