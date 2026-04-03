@@ -80,3 +80,62 @@ export interface StoryLink {
 }
 export interface Story { id: string; feature_id: string; parent_story_id?: string; title: string; description?: string; status: string; priority: string; assigned_agent_id?: string; tags: string[]; acceptance_criteria: AcceptanceCriterion[]; estimated_minutes?: number; git_branch?: string; events?: BoardEvent[]; links?: StoryLink[]; created_at: string; short_id?: string }
 export interface BoardEvent { id: string; target_type: string; target_id: string; agent_id?: string; from_status?: string; to_status?: string; comment?: string; created_at: string }
+
+// ─── Auth Types & API ─────────────────────────────────────────────────────────
+
+export interface User {
+  id: number
+  email: string
+  name: string
+  avatar_url: string | null
+  provider: 'google' | 'github'
+  role: 'admin' | 'member'
+  status: 'pending' | 'active'
+  created_at: string
+}
+
+export const authApi = {
+  me: (): Promise<User> =>
+    fetch('/api/auth/me', { credentials: 'include' }).then(r => {
+      if (!r.ok) throw new Error('Not authenticated')
+      return r.json()
+    }),
+
+  logout: (): Promise<void> =>
+    fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).then(() => {}),
+}
+
+export const adminApi = {
+  listUsers: (): Promise<User[]> =>
+    fetch('/api/admin/users', { credentials: 'include' }).then(r => r.json()),
+
+  approveUser: (id: number, data: { status?: string; role?: string }): Promise<User> =>
+    fetch(`/api/admin/users/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(data),
+    }).then(r => r.json()),
+
+  pendingCount: (): Promise<{ count: number }> =>
+    fetch('/api/admin/users/pending-count', { credentials: 'include' }).then(r => r.json()),
+}
+
+export const membersApi = {
+  list: (projectId: string): Promise<User[]> =>
+    fetch(`/api/projects/${projectId}/members`, { credentials: 'include' }).then(r => r.json()),
+
+  add: (projectId: string, email: string): Promise<void> =>
+    fetch(`/api/projects/${projectId}/members`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ email }),
+    }).then(r => { if (!r.ok) throw new Error('Failed to add member') }),
+
+  remove: (projectId: string, userId: number): Promise<void> =>
+    fetch(`/api/projects/${projectId}/members/${userId}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    }).then(() => {}),
+}
