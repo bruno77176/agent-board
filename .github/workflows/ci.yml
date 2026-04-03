@@ -10,10 +10,6 @@ jobs:
   ci:
     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: agent-board
-
     steps:
       - uses: actions/checkout@v4
 
@@ -22,7 +18,7 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-          cache-dependency-path: agent-board/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci
