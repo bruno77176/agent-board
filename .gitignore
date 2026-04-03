@@ -4,7 +4,7 @@ dist/
 .env
 .env.*
 .env.local
-client/dist/
+# client/dist is committed (Railway runs Node 18, can't build Vite 8)
 *.log
 npm-debug.log*
 coverage/
