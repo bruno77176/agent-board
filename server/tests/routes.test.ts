@@ -39,6 +39,11 @@ describe('GET /api/projects', () => {
     expect(res.status).toBe(200)
     expect(res.body).toEqual([])
   })
+  it('admin sees all projects', async () => {
+    const res = await request(buildApp()).get('/api/projects')
+    expect(res.status).toBe(200)
+    expect(Array.isArray(res.body)).toBe(true)
+  })
 })
 
 describe('POST /api/projects', () => {
