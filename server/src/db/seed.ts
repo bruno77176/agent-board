@@ -76,16 +76,19 @@ const WORKFLOWS = [
   },
 ]
 
+function sp(name: string) { return { name, content: '' } }
+
 const AGENTS = [
-  { slug: 'pro-ject', name: 'Pro Ject', scope: 'Project management & requirements', color: '#f97316', avatar_emoji: '📋', skills: ['brainstorming', 'writing-plans'] },
-  { slug: 'arch-lee', name: 'Arch Lee', scope: 'Architecture & planning', color: '#6366f1', avatar_emoji: '🏛️', skills: ['brainstorming', 'writing-plans', 'dispatching-parallel-agents'] },
-  { slug: 'tess-ter', name: 'Tess Ter', scope: 'Testing & QA', color: '#10b981', avatar_emoji: '🧪', skills: ['test-driven-development', 'verification-before-completion'] },
-  { slug: 'deb-ugg', name: 'Deb Ugg', scope: 'Debugging', color: '#f59e0b', avatar_emoji: '🐛', skills: ['systematic-debugging'] },
-  { slug: 'rev-yu', name: 'Rev Yu', scope: 'Code review', color: '#3b82f6', avatar_emoji: '🔍', skills: ['requesting-code-review', 'receiving-code-review'] },
-  { slug: 'dee-ploy', name: 'Dee Ploy', scope: 'Deployment & merge', color: '#8b5cf6', avatar_emoji: '🚀', skills: ['finishing-a-development-branch', 'using-git-worktrees'] },
-  { slug: 'dev-in', name: 'Dev In', scope: 'Backend implementation', color: '#64748b', avatar_emoji: '⚙️', skills: ['executing-plans', 'subagent-driven-development'] },
-  { slug: 'fron-tina', name: 'Fron Tina', scope: 'Frontend implementation', color: '#ec4899', avatar_emoji: '🎨', skills: ['frontend-design', 'executing-plans'] },
-  { slug: 'doc-tor', name: 'Doc Tor', scope: 'Documentation', color: '#0ea5e9', avatar_emoji: '📝', skills: ['doc-coauthoring', 'writing-skills'] },
+  { slug: 'pro-ject',  name: 'Pro Ject',  scope: 'Project management & requirements', color: '#f97316', avatar_emoji: '📋', skills: [sp('superpowers:brainstorming'), sp('superpowers:writing-plans')] },
+  { slug: 'arch-lee',  name: 'Arch Lee',  scope: 'Architecture & planning',           color: '#6366f1', avatar_emoji: '🏛️', skills: [sp('superpowers:brainstorming'), sp('superpowers:writing-plans'), sp('superpowers:dispatching-parallel-agents')] },
+  { slug: 'tess-ter',  name: 'Tess Ter',  scope: 'Testing & QA',                      color: '#10b981', avatar_emoji: '🧪', skills: [sp('superpowers:test-driven-development'), sp('superpowers:verification-before-completion')] },
+  { slug: 'deb-ugg',   name: 'Deb Ugg',   scope: 'Debugging',                         color: '#f59e0b', avatar_emoji: '🐛', skills: [sp('superpowers:systematic-debugging')] },
+  { slug: 'rev-yu',    name: 'Rev Yu',    scope: 'Code review',                       color: '#3b82f6', avatar_emoji: '🔍', skills: [sp('superpowers:requesting-code-review'), sp('superpowers:receiving-code-review')] },
+  { slug: 'dee-ploy',  name: 'Dee Ploy',  scope: 'Deployment & merge',                color: '#8b5cf6', avatar_emoji: '🚀', skills: [sp('superpowers:finishing-a-development-branch'), sp('superpowers:using-git-worktrees')] },
+  { slug: 'dev-in',    name: 'Dev In',    scope: 'Backend implementation',            color: '#64748b', avatar_emoji: '⚙️', skills: [sp('superpowers:executing-plans'), sp('superpowers:subagent-driven-development')] },
+  { slug: 'fron-tina', name: 'Fron Tina', scope: 'Frontend implementation',           color: '#ec4899', avatar_emoji: '🎨', skills: [sp('superpowers:frontend-design'), sp('superpowers:executing-plans')] },
+  { slug: 'doc-tor',   name: 'Doc Tor',   scope: 'Documentation',                     color: '#0ea5e9', avatar_emoji: '📝', skills: [sp('superpowers:doc-coauthoring'), sp('superpowers:writing-skills')] },
+  { slug: 'pip-lynn',  name: 'Pip Lynn',  scope: 'DevOps, CI/CD & infrastructure',    color: '#22c55e', avatar_emoji: '🛠️', skills: [sp('superpowers:devops')] },
 ]
 
 export function seed(db: Database.Database): void {
@@ -99,11 +102,19 @@ export function seed(db: Database.Database): void {
   const insertAgent = db.prepare(
     'INSERT OR IGNORE INTO agents (id, slug, name, scope, color, avatar_emoji, skills) VALUES (?, ?, ?, ?, ?, ?, ?)'
   )
-  const updateAgentSkills = db.prepare(
-    'UPDATE agents SET skills = ? WHERE slug = ?'
-  )
   for (const a of AGENTS) {
+    // INSERT OR IGNORE — only sets skills on first creation, never overwrites user-configured skills
     insertAgent.run(randomUUID(), a.slug, a.name, a.scope, a.color, a.avatar_emoji, JSON.stringify(a.skills))
-    updateAgentSkills.run(JSON.stringify(a.skills), a.slug)
+  }
+
+  // One-time migration: convert old string[] skills → {name, content}[] for any existing agents
+  const allAgents = db.prepare('SELECT id, slug, skills FROM agents').all() as any[]
+  const migrateSkills = db.prepare('UPDATE agents SET skills = ? WHERE id = ?')
+  for (const agent of allAgents) {
+    const parsed = JSON.parse(agent.skills ?? '[]')
+    if (parsed.length > 0 && typeof parsed[0] === 'string') {
+      const migrated = parsed.map((s: string) => ({ name: s, content: '' }))
+      migrateSkills.run(JSON.stringify(migrated), agent.id)
+    }
   }
 }
