@@ -4,7 +4,7 @@ import { Server } from 'http'
 export type Broadcast = (event: object) => void
 
 export function createWsServer(server: Server): Broadcast {
-  const wss = new WebSocketServer({ server })
+  const wss = new WebSocketServer({ server, path: '/ws' })
 
   function broadcast(event: object): void {
     const data = JSON.stringify(event)

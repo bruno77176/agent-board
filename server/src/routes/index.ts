@@ -20,6 +20,6 @@ export function createRouter(db: Database.Database, broadcast: import('../ws/ind
   router.use('/features', featuresRouter(db, broadcast))
   router.use('/stories', storiesRouter(db, broadcast))
   router.use('/events', eventsRouter(db, broadcast))
-  router.use('/docs', docsRouter())
+  router.use('/docs', docsRouter(db, broadcast))
   return router
 }

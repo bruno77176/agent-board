@@ -23,6 +23,30 @@ When you invoke a superpowers skill, assume the corresponding agent identity for
 | frontend-design, executing-plans (frontend) | Fron Tina 🎨 | `fron-tina` |
 | doc-coauthoring | Doc Tor 📝 | `doc-tor` |
 
+## Checking for New Work (Read Flow)
+
+When starting a session or when the user asks "what's new on the board":
+
+1. **Get the overview**: `get_project_overview(project_id)` — returns the full hierarchy with status rollups and recent activity
+2. **Summarize for the user**: Present epics with completion status, highlight features with stories still in backlog or todo
+3. **If the user picks an epic**: `get_epic(epic_id)` — shows features with story counts
+4. **If the user picks a feature**: `get_feature(feature_id)` — shows individual stories with status and priority
+5. **If the user says "let's implement this"**:
+   - If no stories exist yet → invoke `brainstorming` skill (as Arch Lee) to design the feature, then `writing-plans` to create implementation plan and stories
+   - If stories exist in backlog → invoke `writing-plans` or go straight to `executing-plans` depending on complexity
+   - Always call `start_story(story_id, agent_id)` before beginning work
+
+### Discovery Commands
+
+| Question | MCP tool |
+|---|---|
+| "What's on the board?" | `get_project_overview(project_id)` |
+| "Show me epic X" | `get_epic(epic_id)` |
+| "What's in feature Y?" | `get_feature(feature_id)` |
+| "List features for epic Z" | `list_features(epic_id)` |
+| "All features in the project" | `list_features(project_id)` |
+| "What stories need work?" | `get_board(project_id)` |
+
 ## MCP Tools — When to Call Them
 
 ### After brainstorming design is approved (Arch Lee)

@@ -6,6 +6,7 @@ import { getDb } from './db/index.js'
 import { seed } from './db/seed.js'
 import { createRouter } from './routes/index.js'
 import { createWsServer } from './ws/index.js'
+import { startDocWatcher } from './lib/doc-watcher.js'
 
 const app = express()
 const server = createServer(app)
@@ -25,6 +26,9 @@ if (process.env.NODE_ENV === 'production') {
   app.use(express.static(clientDist))
   app.get('*', (_: any, res: any) => res.sendFile(path.join(clientDist, 'index.html')))
 }
+
+const DOCS_ROOT = process.env.DOCS_PATH ?? path.resolve(process.cwd(), '..', 'docs')
+startDocWatcher(db, DOCS_ROOT, broadcast)
 
 server.listen(PORT, () => {
   console.log(`Agent Board running on http://localhost:${PORT}`)

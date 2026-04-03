@@ -22,6 +22,25 @@ interface DocsViewProps {
 
 export function DocsView({ projectKey }: DocsViewProps) {
   const [selected, setSelected] = useState<string | null>(null)
+  const [syncStatus, setSyncStatus] = useState<string | null>(null)
+
+  const handleSync = async () => {
+    if (!selected) return
+    setSyncStatus('Syncing...')
+    try {
+      const res = await fetch('/api/docs/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file: selected }),
+      })
+      const data = await res.json()
+      setSyncStatus(data.message)
+      setTimeout(() => setSyncStatus(null), 4000)
+    } catch {
+      setSyncStatus('Sync failed')
+      setTimeout(() => setSyncStatus(null), 3000)
+    }
+  }
 
   const { data: files = [] } = useQuery({
     queryKey: ['docs', projectKey],
@@ -75,6 +94,20 @@ export function DocsView({ projectKey }: DocsViewProps) {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-8 py-6">
+        {selected && (
+          <div className="flex items-center gap-2 mb-4">
+            <button
+              onClick={handleSync}
+              className="text-xs px-2 py-1 rounded bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors"
+              title="Create board items from this doc"
+            >
+              ⚡ Sync to board
+            </button>
+            {syncStatus && (
+              <span className="text-xs text-slate-500">{syncStatus}</span>
+            )}
+          </div>
+        )}
         {!selected && (
           <p className="text-sm text-slate-400">Select a document from the list.</p>
         )}

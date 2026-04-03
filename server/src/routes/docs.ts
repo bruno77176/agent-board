@@ -1,8 +1,10 @@
 import { Router } from 'express'
 import fs from 'fs'
 import path from 'path'
+import Database from 'better-sqlite3'
+import { Broadcast } from '../ws/index.js'
 
-export function docsRouter(): Router {
+export function docsRouter(db?: Database.Database, broadcast?: Broadcast): Router {
   const router = Router()
 
   // GET /api/docs — list all .md files (optionally filtered by ?project=KEY)
@@ -25,6 +27,28 @@ export function docsRouter(): Router {
     }
     const files = walk(searchRoot).map(f => path.relative(DOCS_ROOT, f).replace(/\\/g, '/'))
     res.json(files)
+  })
+
+  // POST /api/docs/sync — manually trigger doc-to-board sync for a specific file
+  router.post('/sync', async (req, res) => {
+    if (!db || !broadcast) {
+      return res.status(503).json({ error: 'Sync not available — db/broadcast not configured' })
+    }
+    const { file } = req.body
+    if (!file || typeof file !== 'string') {
+      return res.status(400).json({ error: 'file path required' })
+    }
+    const DOCS_ROOT = process.env.DOCS_PATH ?? path.resolve(process.cwd(), '..', 'docs')
+    const ROOT_WITH_SEP = DOCS_ROOT.endsWith(path.sep) ? DOCS_ROOT : DOCS_ROOT + path.sep
+    const resolved = path.resolve(DOCS_ROOT, file)
+    if ((!resolved.startsWith(ROOT_WITH_SEP) && resolved !== DOCS_ROOT) || !resolved.endsWith('.md')) {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
+    if (!fs.existsSync(resolved)) return res.status(404).json({ error: 'File not found' })
+
+    const { syncDocToBoard } = await import('../lib/doc-parser.js')
+    const result = await syncDocToBoard(resolved, db, broadcast)
+    res.json(result)
   })
 
   // GET /api/docs/* — return file content
