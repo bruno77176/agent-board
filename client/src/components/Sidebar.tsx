@@ -2,7 +2,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import type { Project } from '@/lib/api'
-import { LayoutDashboard, List, BookOpen, Users, Plus, Map, FileText } from 'lucide-react'
+import { LayoutDashboard, List, BookOpen, Users, Plus, Map, FileText, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { UserNav } from './UserNav'
 
@@ -77,6 +77,10 @@ export function Sidebar({ onCreateClick }: SidebarProps) {
             <NavLink to={`/${project.key}/docs`} className={navLinkClass}>
               <FileText className="w-3.5 h-3.5" />
               Superpowers Docs
+            </NavLink>
+            <NavLink to={`/${project.key}/settings`} className={navLinkClass}>
+              <Settings className="w-3.5 h-3.5" />
+              Settings
             </NavLink>
           </div>
         </>

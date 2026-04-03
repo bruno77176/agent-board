@@ -20,6 +20,7 @@ import { RoadmapView } from './views/RoadmapView'
 import { LoginPage } from './pages/LoginPage'
 import { AdminUsersPage } from './pages/AdminUsersPage'
 import { PendingBanner } from './components/PendingBanner'
+import { ProjectSettings } from './components/ProjectSettings'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth()
@@ -42,6 +43,7 @@ function AppLayout({ onCreateClick }: { onCreateClick: () => void }) {
           <Route path="/:projectKey/epics" element={<ProjectRoutes view="epics" />} />
           <Route path="/:projectKey/epics/:epicId" element={<ProjectRoutes view="epicDetail" />} />
           <Route path="/:projectKey/roadmap" element={<ProjectRoutes view="roadmap" />} />
+          <Route path="/:projectKey/settings" element={<ProjectRoutes view="settings" />} />
           <Route path="/:projectKey/features/:featureId" element={<ProjectRoutes view="featureDetail" />} />
           <Route path="/:projectKey/stories/:storyId" element={<ProjectRoutes view="story" />} />
           <Route path="/team" element={<TeamView />} />
@@ -79,6 +81,7 @@ function ProjectRoutes({ view }: { view: string }) {
   if (view === 'story') return <StoryDetailView storyId={storyId ?? ''} projectKey={project.key} />
   if (view === 'featureDetail') return <FeatureDetailView featureId={featureId ?? ''} projectKey={projectKey ?? ''} />
   if (view === 'roadmap') return <RoadmapView projectId={project.id} />
+  if (view === 'settings') return <ProjectSettings project={project} />
 
   return null
 }

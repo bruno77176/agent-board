@@ -62,7 +62,7 @@ export const api = {
   },
 }
 
-export interface Project { id: string; key: string; name: string; description?: string; workflow_id: string; created_at: string }
+export interface Project { id: string; key: string; name: string; description?: string; workflow_id: string; is_public: number; created_at: string }
 export interface AgentSkill { name: string; content: string }
 export interface Agent { id: string; slug: string; name: string; scope?: string; color: string; avatar_emoji: string; skills: AgentSkill[] }
 export interface AcceptanceCriterion { id: string; text: string; checked: boolean }
