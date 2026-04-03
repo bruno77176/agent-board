@@ -31,6 +31,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 // Layout wrapper that renders Sidebar + main content area
 function AppLayout({ onCreateClick }: { onCreateClick: () => void }) {
+  useBoard()
   return (
     <div className="h-screen flex flex-col bg-slate-50">
       <PendingBanner />
@@ -110,7 +111,6 @@ function WelcomeScreen() {
 }
 
 export default function App() {
-  useBoard()
   const [createOpen, setCreateOpen] = useState(false)
 
   return (

@@ -2,8 +2,12 @@ const BASE = '/api'
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...init?.headers,
+    },
   })
   if (!res.ok) throw new Error(await res.text())
   return res.json()

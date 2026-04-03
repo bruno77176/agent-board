@@ -37,7 +37,10 @@ export function ProjectSettings({ project }: Props) {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ is_public: project.is_public ? 0 : 1 }),
-      }).then(r => r.json()),
+      }).then(r => {
+        if (!r.ok) throw new Error('Failed to update visibility')
+        return r.json()
+      }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['projects'] }),
   })
 
@@ -81,7 +84,7 @@ export function ProjectSettings({ project }: Props) {
           </div>
         )}
         <ul className="space-y-2">
-          {members.map((m: any) => (
+          {members.map((m) => (
             <li key={m.id} className="flex items-center gap-3 py-2">
               {m.avatar_url && <img src={m.avatar_url} alt={m.name} className="w-7 h-7 rounded-full" />}
               <div className="flex-1">
