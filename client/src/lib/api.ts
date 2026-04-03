@@ -19,6 +19,8 @@ export const api = {
     list: () => request<Agent[]>('/agents'),
     get: (slug: string) => request<Agent>(`/agents/${slug}`),
     stories: (slug: string) => request<Story[]>(`/agents/${slug}/stories`),
+    update: (slug: string, data: Partial<Pick<Agent, 'name' | 'scope' | 'color' | 'avatar_emoji' | 'skills'>>) =>
+      request<Agent>(`/agents/${slug}`, { method: 'PATCH', body: JSON.stringify(data) }),
   },
   workflows: {
     list: () => request<Workflow[]>('/workflows'),
@@ -61,7 +63,8 @@ export const api = {
 }
 
 export interface Project { id: string; key: string; name: string; description?: string; workflow_id: string; created_at: string }
-export interface Agent { id: string; slug: string; name: string; scope?: string; color: string; avatar_emoji: string; skills: string[] }
+export interface AgentSkill { name: string; content: string }
+export interface Agent { id: string; slug: string; name: string; scope?: string; color: string; avatar_emoji: string; skills: AgentSkill[] }
 export interface AcceptanceCriterion { id: string; text: string; checked: boolean }
 export interface WorkflowState { id: string; label: string; color: string }
 export interface WorkflowTransition { from: string; to: string; label: string }

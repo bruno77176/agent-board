@@ -46,7 +46,7 @@ export function TeamView() {
               <p className="text-xs text-slate-400 truncate">{agent.scope ?? 'No scope defined'}</p>
               {agent.skills.length > 0 && (
                 <p className="text-xs text-slate-300 truncate mt-0.5">
-                  {agent.skills.slice(0, 3).join(' · ')}
+                  {agent.skills.slice(0, 3).map(s => s.name).join(' · ')}
                   {agent.skills.length > 3 && ` +${agent.skills.length - 3}`}
                 </p>
               )}
