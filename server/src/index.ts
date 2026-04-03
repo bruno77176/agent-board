@@ -10,6 +10,7 @@ import { seed } from './db/seed.js'
 import { createRouter } from './routes/index.js'
 import { createWsServer } from './ws/index.js'
 import { startDocWatcher } from './lib/doc-watcher.js'
+import { registerStrategies } from './passport-strategies.js'
 
 const app = express()
 const server = createServer(app)
@@ -54,6 +55,8 @@ passport.deserializeUser((id: unknown, done) => {
     done(err)
   }
 })
+
+registerStrategies(db)
 
 const broadcast = createWsServer(server)
 app.use('/api', createRouter(db, broadcast))
