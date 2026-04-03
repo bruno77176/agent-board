@@ -111,7 +111,10 @@ export const authApi = {
 
 export const adminApi = {
   listUsers: (): Promise<User[]> =>
-    fetch('/api/admin/users', { credentials: 'include' }).then(r => r.json()),
+    fetch('/api/admin/users', { credentials: 'include' }).then(r => {
+      if (!r.ok) throw new Error('Failed to fetch users')
+      return r.json()
+    }),
 
   approveUser: (id: number, data: { status?: string; role?: string }): Promise<User> =>
     fetch(`/api/admin/users/${id}`, {
@@ -122,7 +125,10 @@ export const adminApi = {
     }).then(r => r.json()),
 
   pendingCount: (): Promise<{ count: number }> =>
-    fetch('/api/admin/users/pending-count', { credentials: 'include' }).then(r => r.json()),
+    fetch('/api/admin/users/pending-count', { credentials: 'include' }).then(r => {
+      if (!r.ok) throw new Error('Failed to fetch pending count')
+      return r.json()
+    }),
 }
 
 export const membersApi = {
