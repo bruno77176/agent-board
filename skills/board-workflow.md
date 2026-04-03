@@ -49,16 +49,88 @@ When starting a session or when the user asks "what's new on the board":
 
 ## MCP Tools — When to Call Them
 
+## Template Requirements — MANDATORY
+
+All epics, features, and stories **must** use the structured templates from `agent-board/docs/templates/`. Never create a bare-title item without filling the template. The description field carries the template content.
+
+### Epic description template
+```markdown
+## Context
+[current situation / problem being solved]
+
+## Objective
+[what we're trying to achieve]
+
+## Value
+[business or product impact]
+
+---
+
+## Scope
+
+**In scope:**
+- [item]
+
+**Out of scope:**
+- [item]
+
+---
+
+## Success Criteria
+- [measurable outcome / KPI]
+
+---
+
+## Stakeholders
+- Product: [name]
+- Tech: [name]
+- Business: [name]
+```
+
+### Feature description template
+```markdown
+## Description
+This feature enables: [what this unlocks functionally]
+
+---
+
+## User Value
+[who benefits and how]
+
+---
+
+## High-Level Acceptance Criteria
+- [end-to-end functionality works]
+- [handles key edge cases]
+- [integrated with relevant systems]
+
+---
+
+## Dependencies
+- [system / team / API]
+
+---
+
+## Risks / Assumptions
+- [known risks or assumptions]
+```
+
+### Story description + acceptance_criteria template
+- **description field** must follow: "As a [user/system], I want [capability] so that [value]."
+  Then add: "**Given** [context] **When** [action] **Then** [expected result]" for each scenario.
+- **acceptance_criteria field** (JSON array) must list each verifiable criterion as a separate item.
+- Always include a Definition of Done: Code implemented, Tests added, Code reviewed, Deployed/usable.
+
 ### After brainstorming design is approved (Arch Lee)
 ```
-create_epic(project_id, title, version)
-create_feature(epic_id, title)          — one per major component
-create_story(feature_id, title, estimated_minutes)  — one per plan step, max 10 min
+create_epic(project_id, title, version, description)   — description MUST follow epic template
+create_feature(epic_id, title, description)             — description MUST follow feature template
+create_story(feature_id, title, description, estimated_minutes, acceptance_criteria)  — max 10 min
 ```
 
 ### After writing-plans creates the implementation plan (Arch Lee)
 ```
-create_story(feature_id, title, estimated_minutes)  — one story per plan task
+create_story(feature_id, title, description, estimated_minutes, acceptance_criteria)  — one story per plan task
 ```
 
 ### When starting a story (any agent)

@@ -49,6 +49,28 @@ export function featuresRouter(db: Database.Database, broadcast: Broadcast): Rou
     })
   })
 
+  router.patch('/:id', (req, res) => {
+    const feature = db.prepare('SELECT * FROM features WHERE id = ? OR short_id = ?').get(req.params.id, req.params.id) as any
+    if (!feature) return res.status(404).json({ error: 'Not found' })
+    const { title, description, tags } = req.body
+
+    const updates: string[] = []
+    const params: any[] = []
+
+    if (title !== undefined) { updates.push('title = ?'); params.push(title) }
+    if (description !== undefined) { updates.push('description = ?'); params.push(description) }
+    if (tags !== undefined) { updates.push('tags = ?'); params.push(JSON.stringify(tags)) }
+
+    if (updates.length === 0) return res.json({ ...feature, tags: JSON.parse(feature.tags) })
+    params.push(feature.id)
+    db.prepare(`UPDATE features SET ${updates.join(', ')} WHERE id = ?`).run(...params)
+
+    const updated = db.prepare('SELECT * FROM features WHERE id = ?').get(feature.id) as any
+    const result = { ...updated, tags: JSON.parse(updated.tags) }
+    broadcast({ type: 'feature.updated', data: result })
+    res.json(result)
+  })
+
   router.post('/', (req, res) => {
     const { epic_id, title, description, tags } = req.body
     if (!epic_id || !title) return res.status(400).json({ error: 'epic_id and title required' })

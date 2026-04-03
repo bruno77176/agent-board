@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '@/lib/api'
 import type { Feature, Story, Agent, Epic } from '@/lib/api'
 import { ArrowLeft } from 'lucide-react'
+import { MarkdownContent } from '@/components/MarkdownContent'
 
 interface Props { featureId: string; projectKey: string }
 
@@ -75,9 +76,6 @@ export function FeatureDetailView({ featureId, projectKey }: Props) {
               <span className="text-xs font-mono text-slate-400 block mb-1">{typedFeature.short_id}</span>
             )}
             <h1 className="text-base font-semibold text-slate-800">{typedFeature.title}</h1>
-            {typedFeature.description && (
-              <p className="text-xs text-slate-500 mt-1">{typedFeature.description}</p>
-            )}
           </div>
         </div>
         {typedFeature.tags && typedFeature.tags.length > 0 && (
@@ -90,6 +88,11 @@ export function FeatureDetailView({ featureId, projectKey }: Props) {
       </div>
 
       <div className="flex-1 overflow-y-auto p-6">
+        {typedFeature.description && (
+          <div className="bg-white border border-slate-200 rounded-lg p-4 mb-6">
+            <MarkdownContent>{typedFeature.description}</MarkdownContent>
+          </div>
+        )}
         <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
           Stories ({typedStories.length})
         </h2>

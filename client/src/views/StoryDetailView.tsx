@@ -4,7 +4,8 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '@/lib/api'
 import type { Story, Agent, AcceptanceCriterion, StoryLink, Project } from '@/lib/api'
 import { AcceptanceCriteria } from '@/components/AcceptanceCriteria'
-import { ArrowLeft } from 'lucide-react'
+import { MarkdownContent } from '@/components/MarkdownContent'
+import { ArrowLeft, Pencil } from 'lucide-react'
 
 interface Props { storyId?: string; projectKey?: string }
 
@@ -162,6 +163,7 @@ export function StoryDetailView({ storyId: propStoryId, projectKey: propKey }: P
 
   const [editTitle, setEditTitle] = useState('')
   const [editDesc, setEditDesc] = useState('')
+  const [isEditingDesc, setIsEditingDesc] = useState(false)
   const [criteria, setCriteria] = useState<AcceptanceCriterion[]>([])
 
   useEffect(() => {
@@ -233,17 +235,46 @@ export function StoryDetailView({ storyId: propStoryId, projectKey: propKey }: P
               className="w-full text-xl font-semibold text-slate-900 border-0 border-b-2 border-transparent focus:border-blue-400 focus:outline-none pb-1 bg-transparent"
             />
 
-            {/* Description — inline edit */}
+            {/* Description — view/edit toggle */}
             <div>
-              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Description</h3>
-              <textarea
-                value={editDesc}
-                onChange={e => setEditDesc(e.target.value)}
-                onBlur={() => { if (editDesc !== (typedStory.description ?? '')) updateMutation.mutate({ description: editDesc }) }}
-                rows={4}
-                placeholder="Add a description…"
-                className="w-full text-sm text-slate-700 border border-slate-200 rounded-lg p-3 focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none"
-              />
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Description</h3>
+                {!isEditingDesc && (
+                  <button
+                    onClick={() => setIsEditingDesc(true)}
+                    className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600"
+                  >
+                    <Pencil size={11} /> Edit
+                  </button>
+                )}
+              </div>
+              {isEditingDesc ? (
+                <textarea
+                  autoFocus
+                  value={editDesc}
+                  onChange={e => setEditDesc(e.target.value)}
+                  onBlur={() => {
+                    setIsEditingDesc(false)
+                    if (editDesc !== (typedStory.description ?? '')) updateMutation.mutate({ description: editDesc })
+                  }}
+                  rows={8}
+                  className="w-full text-sm text-slate-700 border border-slate-200 rounded-lg p-3 focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none font-mono"
+                />
+              ) : editDesc ? (
+                <div
+                  onClick={() => setIsEditingDesc(true)}
+                  className="cursor-text rounded-lg border border-transparent hover:border-slate-200 px-1 py-0.5 -mx-1 transition-colors"
+                >
+                  <MarkdownContent>{editDesc}</MarkdownContent>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setIsEditingDesc(true)}
+                  className="text-sm text-slate-300 hover:text-slate-500 italic"
+                >
+                  Add a description…
+                </button>
+              )}
             </div>
 
             {/* Acceptance criteria */}

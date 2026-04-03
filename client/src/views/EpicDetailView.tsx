@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '@/lib/api'
 import type { Epic, Feature, Story } from '@/lib/api'
 import { ArrowLeft } from 'lucide-react'
+import { MarkdownContent, stripMarkdown } from '@/components/MarkdownContent'
 
 interface Props { epicId: string; projectKey: string }
 
@@ -65,9 +66,6 @@ export function EpicDetailView({ epicId }: Props) {
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h1 className="text-base font-semibold text-slate-800">{typedEpic.title}</h1>
-            {typedEpic.description && (
-              <p className="text-xs text-slate-500 mt-1">{typedEpic.description}</p>
-            )}
             <div className="flex items-center gap-4 mt-2">
               <label className="text-xs text-slate-500">
                 Start
@@ -94,6 +92,11 @@ export function EpicDetailView({ epicId }: Props) {
 
       {/* Features + Stories */}
       <div className="flex-1 overflow-y-auto p-6">
+        {typedEpic.description && (
+          <div className="bg-white border border-slate-200 rounded-lg p-4 mb-6">
+            <MarkdownContent>{typedEpic.description}</MarkdownContent>
+          </div>
+        )}
         <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
           Features ({typedFeatures.length})
         </h2>
@@ -115,7 +118,7 @@ export function EpicDetailView({ epicId }: Props) {
                     )}
                     <span className="text-sm font-medium text-slate-800 group-hover:text-blue-600">{feature.title}</span>
                     {feature.description && (
-                      <p className="text-xs text-slate-400 mt-0.5 truncate">{feature.description}</p>
+                      <p className="text-xs text-slate-400 mt-0.5 truncate">{stripMarkdown(feature.description)}</p>
                     )}
                   </div>
                   <span className="text-xs text-slate-400 flex-shrink-0">{featureStories.length} stories</span>
