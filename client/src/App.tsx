@@ -18,6 +18,8 @@ import { DocsView } from './views/DocsView'
 import { CreateModal } from './components/CreateModal'
 import { RoadmapView } from './views/RoadmapView'
 import { LoginPage } from './pages/LoginPage'
+import { AdminUsersPage } from './pages/AdminUsersPage'
+import { PendingBanner } from './components/PendingBanner'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth()
@@ -29,7 +31,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 // Layout wrapper that renders Sidebar + main content area
 function AppLayout({ onCreateClick }: { onCreateClick: () => void }) {
   return (
-    <div className="h-screen flex bg-slate-50">
+    <div className="h-screen flex flex-col bg-slate-50">
+      <PendingBanner />
+      <div className="flex flex-1 overflow-hidden">
       <Sidebar onCreateClick={onCreateClick} />
       <main className="flex-1 overflow-hidden">
         <Routes>
@@ -44,10 +48,12 @@ function AppLayout({ onCreateClick }: { onCreateClick: () => void }) {
           <Route path="/team/:agentSlug" element={<AgentProfileView />} />
           <Route path="/docs" element={<DocsView />} />
           <Route path="/:projectKey/docs" element={<ProjectDocsRoute />} />
+          <Route path="/admin/users" element={<AdminUsersPage />} />
           <Route path="/" element={<Navigate to="/team" replace />} />
           <Route path="*" element={<WelcomeScreen />} />
         </Routes>
       </main>
+      </div>
     </div>
   )
 }

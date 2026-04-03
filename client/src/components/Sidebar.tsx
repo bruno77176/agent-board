@@ -4,6 +4,7 @@ import { api } from '@/lib/api'
 import type { Project } from '@/lib/api'
 import { LayoutDashboard, List, BookOpen, Users, Plus, Map, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { UserNav } from './UserNav'
 
 interface SidebarProps {
   onCreateClick: () => void
@@ -99,6 +100,8 @@ export function Sidebar({ onCreateClick }: SidebarProps) {
           Create
         </button>
       </div>
+
+      <UserNav />
     </aside>
   )
 }
