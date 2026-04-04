@@ -1,45 +1,40 @@
-import { describe, it, expect, beforeEach, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest'
 import express from 'express'
 import request from 'supertest'
 import os from 'os'
 import fs from 'fs'
 import path from 'path'
-import { getDb, closeDb } from '../src/db/index.js'
-import { seed } from '../src/db/seed.js'
+import type postgres from 'postgres'
+import { createSeededTestSql, closeTestSql, skipIfNoDb } from './helpers.js'
 import { createRouter } from '../src/routes/index.js'
-import { Broadcast } from '../src/ws/index.js'
+import type { Broadcast } from '../src/ws/index.js'
 
 const noop: Broadcast = () => {}
 
-function buildApp() {
-  const db = getDb(':memory:')
-  seed(db)
+async function buildApp(sql: postgres.Sql) {
   // Insert a test admin user
-  db.prepare(
-    'INSERT INTO users (email, name, provider, provider_id, role, status) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run('admin@test.com', 'Admin', 'github', '999', 'admin', 'active')
-  const user = db.prepare('SELECT * FROM users WHERE provider_id = ?').get('999') as any
-
+  const [user] = await sql`
+    INSERT INTO users (email, name, provider, provider_id, role, status)
+    VALUES ('admin@test.com', 'Admin', 'github', '999', 'admin', 'active')
+    RETURNING *
+  `
   const app = express()
   app.use(express.json())
-  // Inject user into req before hitting middleware
   app.use((req: any, _res: any, next: any) => {
     req.user = user
     req.isAuthenticated = () => true
     next()
   })
-  app.use('/api', createRouter(db, noop))
+  app.use('/api', createRouter(sql, noop))
   return app
 }
 
-function buildAppWithMember() {
-  const db = getDb(':memory:')
-  seed(db)
-  db.prepare(
-    'INSERT INTO users (email, name, provider, provider_id, role, status) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run('member@test.com', 'Member', 'github', '888', 'member', 'active')
-  const user = db.prepare('SELECT * FROM users WHERE provider_id = ?').get('888') as any
-
+async function buildAppWithMember(sql: postgres.Sql) {
+  const [user] = await sql`
+    INSERT INTO users (email, name, provider, provider_id, role, status)
+    VALUES ('member@test.com', 'Member', 'github', '888', 'member', 'active')
+    RETURNING *
+  `
   const app = express()
   app.use(express.json())
   app.use((req: any, _res: any, next: any) => {
@@ -47,34 +42,63 @@ function buildAppWithMember() {
     req.isAuthenticated = () => true
     next()
   })
-  app.use('/api', createRouter(db, noop))
+  app.use('/api', createRouter(sql, noop))
   return app
 }
 
 describe('GET /api/projects', () => {
-  beforeEach(() => closeDb())
+  let sql: postgres.Sql
+
+  beforeEach(async () => {
+    if (skipIfNoDb()) return
+    sql = await createSeededTestSql()
+  })
+
+  afterEach(async () => {
+    if (sql) await closeTestSql(sql)
+  })
+
   it('returns empty array initially', async () => {
-    const res = await request(buildApp()).get('/api/projects')
+    if (skipIfNoDb()) return
+    const app = await buildApp(sql)
+    const res = await request(app).get('/api/projects')
     expect(res.status).toBe(200)
     expect(res.body).toEqual([])
   })
+
   it('admin sees all projects', async () => {
-    const res = await request(buildApp()).get('/api/projects')
+    if (skipIfNoDb()) return
+    const app = await buildApp(sql)
+    const res = await request(app).get('/api/projects')
     expect(res.status).toBe(200)
     expect(Array.isArray(res.body)).toBe(true)
   })
 })
 
 describe('POST /api/projects', () => {
-  beforeEach(() => closeDb())
+  let sql: postgres.Sql
+
+  beforeEach(async () => {
+    if (skipIfNoDb()) return
+    sql = await createSeededTestSql()
+  })
+
+  afterEach(async () => {
+    if (sql) await closeTestSql(sql)
+  })
+
   it('creates a project', async () => {
-    const res = await request(buildApp()).post('/api/projects').send({ key: 'TEST', name: 'Test Project', workflow_id: 'standard' })
+    if (skipIfNoDb()) return
+    const app = await buildApp(sql)
+    const res = await request(app).post('/api/projects').send({ key: 'TEST', name: 'Test Project', workflow_id: 'standard' })
     expect(res.status).toBe(201)
     expect(res.body.key).toBe('TEST')
     expect(res.body.id).toBeTruthy()
   })
+
   it('rejects duplicate key', async () => {
-    const app = buildApp()
+    if (skipIfNoDb()) return
+    const app = await buildApp(sql)
     await request(app).post('/api/projects').send({ key: 'DUP', name: 'A', workflow_id: 'light' })
     const res = await request(app).post('/api/projects').send({ key: 'DUP', name: 'B', workflow_id: 'light' })
     expect(res.status).toBe(409)
@@ -82,18 +106,42 @@ describe('POST /api/projects', () => {
 })
 
 describe('GET /api/agents', () => {
-  beforeEach(() => closeDb())
+  let sql: postgres.Sql
+
+  beforeEach(async () => {
+    if (skipIfNoDb()) return
+    sql = await createSeededTestSql()
+  })
+
+  afterEach(async () => {
+    if (sql) await closeTestSql(sql)
+  })
+
   it('returns seeded agents', async () => {
-    const res = await request(buildApp()).get('/api/agents')
+    if (skipIfNoDb()) return
+    const app = await buildApp(sql)
+    const res = await request(app).get('/api/agents')
     expect(res.status).toBe(200)
     expect(res.body).toHaveLength(10)
   })
 })
 
 describe('GET /api/workflows', () => {
-  beforeEach(() => closeDb())
+  let sql: postgres.Sql
+
+  beforeEach(async () => {
+    if (skipIfNoDb()) return
+    sql = await createSeededTestSql()
+  })
+
+  afterEach(async () => {
+    if (sql) await closeTestSql(sql)
+  })
+
   it('returns workflows with parsed states array', async () => {
-    const res = await request(buildApp()).get('/api/workflows')
+    if (skipIfNoDb()) return
+    const app = await buildApp(sql)
+    const res = await request(app).get('/api/workflows')
     expect(res.status).toBe(200)
     expect(res.body).toHaveLength(3)
     expect(Array.isArray(res.body[0].states)).toBe(true)
@@ -101,10 +149,19 @@ describe('GET /api/workflows', () => {
 })
 
 describe('stories', () => {
-  beforeEach(() => closeDb())
+  let sql: postgres.Sql
+
+  beforeEach(async () => {
+    if (skipIfNoDb()) return
+    sql = await createSeededTestSql()
+  })
+
+  afterEach(async () => {
+    if (sql) await closeTestSql(sql)
+  })
 
   async function setup() {
-    const app = buildApp()
+    const app = await buildApp(sql)
     const project = (await request(app).post('/api/projects').send({ key: 'TST', name: 'Test', workflow_id: 'standard' })).body
     const epic = (await request(app).post('/api/epics').send({ project_id: project.id, title: 'Epic 1', version: 'v0.0.1' })).body
     const feature = (await request(app).post('/api/features').send({ epic_id: epic.id, title: 'Feature 1' })).body
@@ -112,6 +169,7 @@ describe('stories', () => {
   }
 
   it('creates a story with status backlog', async () => {
+    if (skipIfNoDb()) return
     const { app, feature } = await setup()
     const res = await request(app).post('/api/stories').send({ feature_id: feature.id, title: 'Build login form', estimated_minutes: 5 })
     expect(res.status).toBe(201)
@@ -119,18 +177,19 @@ describe('stories', () => {
   })
 
   it('moves story status and records event', async () => {
+    if (skipIfNoDb()) return
     const { app, feature } = await setup()
     const story = (await request(app).post('/api/stories').send({ feature_id: feature.id, title: 'S1', estimated_minutes: 3 })).body
     const res = await request(app).patch(`/api/stories/${story.id}/status`).send({ status: 'in_progress' })
     expect(res.status).toBe(200)
     expect(res.body.status).toBe('in_progress')
-    // event was recorded
     const events = (await request(app).get(`/api/events?target_id=${story.id}`)).body
     expect(events.length).toBeGreaterThan(0)
     expect(events[0].to_status).toBe('in_progress')
   })
 
   it('adds a comment on an epic', async () => {
+    if (skipIfNoDb()) return
     const { app, epic } = await setup()
     const res = await request(app).post('/api/events').send({
       target_type: 'epic',
@@ -143,9 +202,20 @@ describe('stories', () => {
 })
 
 describe('PATCH /api/epics/:id', () => {
-  beforeEach(() => closeDb())
+  let sql: postgres.Sql
+
+  beforeEach(async () => {
+    if (skipIfNoDb()) return
+    sql = await createSeededTestSql()
+  })
+
+  afterEach(async () => {
+    if (sql) await closeTestSql(sql)
+  })
+
   it('updates epic start_date and end_date', async () => {
-    const app = buildApp()
+    if (skipIfNoDb()) return
+    const app = await buildApp(sql)
     const proj = await request(app).post('/api/projects').send({ key: 'RMP', name: 'Roadmap', workflow_id: 'standard' })
     const epic = await request(app).post('/api/epics').send({ project_id: proj.body.id, title: 'Epic 1' })
     const res = await request(app)
@@ -168,10 +238,20 @@ async function createStory(app: any, title = 'Test Story') {
 }
 
 describe('Story links', () => {
-  beforeEach(() => closeDb())
+  let sql: postgres.Sql
+
+  beforeEach(async () => {
+    if (skipIfNoDb()) return
+    sql = await createSeededTestSql()
+  })
+
+  afterEach(async () => {
+    if (sql) await closeTestSql(sql)
+  })
 
   it('creates a link between two stories', async () => {
-    const app = buildApp()
+    if (skipIfNoDb()) return
+    const app = await buildApp(sql)
     const { story: a } = await createStory(app, 'Story A')
     const { story: b } = await createStory(app, 'Story B')
     const res = await request(app)
@@ -184,7 +264,8 @@ describe('Story links', () => {
   })
 
   it('returns links for a story including inverse direction', async () => {
-    const app = buildApp()
+    if (skipIfNoDb()) return
+    const app = await buildApp(sql)
     const { story: a } = await createStory(app, 'A')
     const { story: b } = await createStory(app, 'B')
     await request(app).post(`/api/stories/${a.id}/links`).send({ to_story_id: b.id, link_type: 'blocks' })
@@ -194,7 +275,8 @@ describe('Story links', () => {
   })
 
   it('deletes a link', async () => {
-    const app = buildApp()
+    if (skipIfNoDb()) return
+    const app = await buildApp(sql)
     const { story: a } = await createStory(app, 'A')
     const { story: b } = await createStory(app, 'B')
     const create = await request(app).post(`/api/stories/${a.id}/links`).send({ to_story_id: b.id, link_type: 'relates_to' })
@@ -206,7 +288,8 @@ describe('Story links', () => {
   })
 
   it('includes links in GET /api/stories/:id', async () => {
-    const app = buildApp()
+    if (skipIfNoDb()) return
+    const app = await buildApp(sql)
     const { story: a } = await createStory(app, 'A')
     const { story: b } = await createStory(app, 'B')
     await request(app).post(`/api/stories/${a.id}/links`).send({ to_story_id: b.id, link_type: 'blocks' })
@@ -218,21 +301,34 @@ describe('Story links', () => {
 })
 
 describe('PATCH /api/projects/:id', () => {
-  beforeEach(() => closeDb())
+  let sql: postgres.Sql
+
+  beforeEach(async () => {
+    if (skipIfNoDb()) return
+    sql = await createSeededTestSql()
+  })
+
+  afterEach(async () => {
+    if (sql) await closeTestSql(sql)
+  })
 
   it('returns 403 for non-admin user', async () => {
-    const app = buildAppWithMember()
+    if (skipIfNoDb()) return
+    const app = await buildAppWithMember(sql)
     const res = await request(app).patch('/api/projects/BOARD').send({ is_public: 1 })
     expect(res.status).toBe(403)
   })
 
   it('returns 404 for unknown project', async () => {
-    const res = await request(buildApp()).patch('/api/projects/NONEXISTENT').send({ is_public: 1 })
+    if (skipIfNoDb()) return
+    const app = await buildApp(sql)
+    const res = await request(app).patch('/api/projects/NONEXISTENT').send({ is_public: 1 })
     expect(res.status).toBe(404)
   })
 
   it('admin can toggle is_public', async () => {
-    const app = buildApp()
+    if (skipIfNoDb()) return
+    const app = await buildApp(sql)
     const proj = await request(app).post('/api/projects').send({ key: 'BOARD', name: 'Board', workflow_id: 'standard' })
     const res = await request(app).patch(`/api/projects/${proj.body.key}`).send({ is_public: 1 })
     expect(res.status).toBe(200)
@@ -241,18 +337,29 @@ describe('PATCH /api/projects/:id', () => {
 })
 
 describe('GET /api/projects membership filter', () => {
-  beforeEach(() => closeDb())
+  let sql: postgres.Sql
+
+  beforeEach(async () => {
+    if (skipIfNoDb()) return
+    sql = await createSeededTestSql()
+  })
+
+  afterEach(async () => {
+    if (sql) await closeTestSql(sql)
+  })
 
   it('member with no membership sees no private projects', async () => {
-    const res = await request(buildAppWithMember()).get('/api/projects')
+    if (skipIfNoDb()) return
+    const app = await buildAppWithMember(sql)
+    const res = await request(app).get('/api/projects')
     expect(res.status).toBe(200)
-    // All seeded projects have is_public=0 and member has no memberships
     expect(res.body).toEqual([])
   })
 })
 
 describe('GET /api/docs', () => {
   let tmpDir: string
+  let sql: postgres.Sql
 
   beforeAll(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'docs-test-'))
@@ -265,32 +372,42 @@ describe('GET /api/docs', () => {
     delete process.env.DOCS_PATH
   })
 
-  beforeEach(() => closeDb())
+  beforeEach(async () => {
+    if (skipIfNoDb()) return
+    sql = await createSeededTestSql()
+  })
+
+  afterEach(async () => {
+    if (sql) await closeTestSql(sql)
+  })
 
   it('lists .md files', async () => {
-    const app = buildApp()
+    if (skipIfNoDb()) return
+    const app = await buildApp(sql)
     const res = await request(app).get('/api/docs')
     expect(res.status).toBe(200)
     expect(res.body).toContain('test.md')
   })
 
   it('serves a valid .md file', async () => {
-    const app = buildApp()
+    if (skipIfNoDb()) return
+    const app = await buildApp(sql)
     const res = await request(app).get('/api/docs/test.md')
     expect(res.status).toBe(200)
     expect(res.text).toContain('# Hello')
   })
 
   it('rejects path traversal attempts with 403', async () => {
-    const app = buildApp()
-    // Use %2f encoding so Express doesn't normalize the path before it reaches the handler
+    if (skipIfNoDb()) return
+    const app = await buildApp(sql)
     const res = await request(app).get('/api/docs/..%2fpackage.json')
     expect(res.status).toBe(403)
   })
 
   it('rejects non-.md files with 403', async () => {
+    if (skipIfNoDb()) return
     fs.writeFileSync(path.join(tmpDir, 'secret.json'), '{"key":"value"}')
-    const app = buildApp()
+    const app = await buildApp(sql)
     const res = await request(app).get('/api/docs/secret.json')
     expect(res.status).toBe(403)
   })

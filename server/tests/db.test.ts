@@ -1,16 +1,25 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { getDb, closeDb } from '../src/db/index.js'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import type postgres from 'postgres'
+import { createTestSql, closeTestSql, skipIfNoDb } from './helpers.js'
 
 describe('database schema', () => {
-  beforeEach(() => closeDb())
+  let sql: postgres.Sql
 
-  it('creates all tables on init', () => {
-    const db = getDb(':memory:')
-    const tables = db
-      .prepare("SELECT name FROM sqlite_master WHERE type='table'")
-      .all()
-      .map((r: any) => r.name)
+  beforeEach(async () => {
+    if (skipIfNoDb()) return
+    sql = await createTestSql()
+  })
 
+  afterEach(async () => {
+    if (sql) await closeTestSql(sql)
+  })
+
+  it('creates all tables on init', async () => {
+    if (skipIfNoDb()) return
+    const rows = await sql`
+      SELECT tablename FROM pg_tables WHERE schemaname = 'public'
+    `
+    const tables = rows.map((r: any) => r.tablename)
     expect(tables).toContain('projects')
     expect(tables).toContain('epics')
     expect(tables).toContain('features')
@@ -20,29 +29,35 @@ describe('database schema', () => {
     expect(tables).toContain('events')
   })
 
-  it('events table has target_type and target_id columns', () => {
-    const db = getDb(':memory:')
-    const cols = db.prepare("PRAGMA table_info(events)").all() as any[]
-    const names = cols.map(c => c.name)
+  it('events table has target_type and target_id columns', async () => {
+    if (skipIfNoDb()) return
+    const cols = await sql`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'events' AND table_schema = 'public'
+    `
+    const names = cols.map((c: any) => c.column_name)
     expect(names).toContain('target_type')
     expect(names).toContain('target_id')
     expect(names).not.toContain('story_id')
   })
 
-  it('creates users and project_members tables', () => {
-    const db = getDb(':memory:')
-    const tables = db.prepare(
-      `SELECT name FROM sqlite_master WHERE type='table'`
-    ).all().map((r: any) => r.name)
+  it('creates users and project_members tables', async () => {
+    if (skipIfNoDb()) return
+    const rows = await sql`
+      SELECT tablename FROM pg_tables WHERE schemaname = 'public'
+    `
+    const tables = rows.map((r: any) => r.tablename)
     expect(tables).toContain('users')
     expect(tables).toContain('project_members')
-    closeDb()
   })
 
-  it('projects table has is_public column', () => {
-    const db = getDb(':memory:')
-    const cols = db.prepare(`PRAGMA table_info(projects)`).all().map((r: any) => r.name)
-    expect(cols).toContain('is_public')
-    closeDb()
+  it('projects table has is_public column', async () => {
+    if (skipIfNoDb()) return
+    const cols = await sql`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'projects' AND table_schema = 'public'
+    `
+    const names = cols.map((c: any) => c.column_name)
+    expect(names).toContain('is_public')
   })
 })
