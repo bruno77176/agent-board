@@ -136,7 +136,7 @@ export function BoardView({ projectId }: Props) {
   }
 
   const toolbar = (
-    <div className="flex items-center gap-3 px-6 py-3 border-b border-slate-200 bg-white flex-shrink-0">
+    <div className="flex flex-wrap items-center gap-3 px-3 md:px-6 py-3 border-b border-slate-200 bg-white flex-shrink-0">
       <div className="flex items-center gap-1">
         {(['board', 'list'] as View[]).map(v => (
           <button key={v} onClick={() => setView(v)}
