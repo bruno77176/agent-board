@@ -62,9 +62,9 @@ export function DocsView({ projectKey }: DocsViewProps) {
   }, {})
 
   return (
-    <div className="h-full flex">
+    <div className="h-full flex flex-col md:flex-row">
       {/* File list */}
-      <div className="w-56 flex-shrink-0 border-r border-slate-200 overflow-y-auto py-4">
+      <div className="w-full md:w-56 md:flex-shrink-0 border-b md:border-b-0 md:border-r border-slate-200 overflow-y-auto py-4 max-h-44 md:max-h-none">
         {projectKey && (
           <p className="text-[10px] uppercase tracking-widest text-slate-400 font-semibold px-4 mb-1">
             {projectKey}
@@ -93,7 +93,7 @@ export function DocsView({ projectKey }: DocsViewProps) {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-8 py-6">
+      <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6">
         {selected && (
           <div className="flex items-center gap-2 mb-4">
             <button
