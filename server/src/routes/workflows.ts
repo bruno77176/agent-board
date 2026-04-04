@@ -1,12 +1,12 @@
 import { Router } from 'express'
-import Database from 'better-sqlite3'
+import type { Sql } from '../db/index.js'
 
-export function workflowsRouter(db: Database.Database): Router {
+export function workflowsRouter(sql: Sql): Router {
   const router = Router()
 
-  router.get('/', (_, res) => {
-    const rows = db.prepare('SELECT * FROM workflows').all() as any[]
-    res.json(rows.map(r => ({ ...r, states: JSON.parse(r.states), transitions: JSON.parse(r.transitions) })))
+  router.get('/', async (_, res) => {
+    const rows = await sql`SELECT * FROM workflows`
+    res.json(rows)
   })
 
   return router
