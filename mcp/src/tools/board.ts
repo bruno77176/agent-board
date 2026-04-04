@@ -1,9 +1,12 @@
 const BASE_URL = process.env.BOARD_URL ?? 'http://localhost:3000'
+const API_KEY = process.env.MCP_API_KEY
 
 async function call(path: string, method = 'GET', body?: object): Promise<any> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (API_KEY) headers['x-api-key'] = API_KEY
   const res = await fetch(`${BASE_URL}/api${path}`, {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: body ? JSON.stringify(body) : undefined,
   })
   if (!res.ok) {
