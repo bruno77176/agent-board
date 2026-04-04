@@ -1,10 +1,10 @@
 import { Router } from 'express'
 import fs from 'fs'
 import path from 'path'
-import Database from 'better-sqlite3'
+import type { Sql } from '../db/index.js'
 import { Broadcast } from '../ws/index.js'
 
-export function docsRouter(db?: Database.Database, broadcast?: Broadcast): Router {
+export function docsRouter(sql?: Sql, broadcast?: Broadcast): Router {
   const router = Router()
 
   // GET /api/docs — list all .md files (optionally filtered by ?project=KEY)
@@ -32,7 +32,7 @@ export function docsRouter(db?: Database.Database, broadcast?: Broadcast): Route
   // POST /api/docs/sync — sync a doc to the board.
   // Accepts either { file: "relative/path.md" } (server filesystem) or { content: "markdown..." } (raw content)
   router.post('/sync', async (req, res) => {
-    if (!db || !broadcast) {
+    if (!sql || !broadcast) {
       return res.status(503).json({ error: 'Sync not available — db/broadcast not configured' })
     }
     const { file, content } = req.body
@@ -44,7 +44,7 @@ export function docsRouter(db?: Database.Database, broadcast?: Broadcast): Route
       try {
         fs.writeFileSync(tmpFile, content, 'utf-8')
         const { syncDocToBoard } = await import('../lib/doc-parser.js')
-        const result = await syncDocToBoard(tmpFile, db, broadcast)
+        const result = await syncDocToBoard(tmpFile, sql, broadcast)
         return res.json(result)
       } finally {
         try { fs.unlinkSync(tmpFile) } catch {}
@@ -64,7 +64,7 @@ export function docsRouter(db?: Database.Database, broadcast?: Broadcast): Route
     if (!fs.existsSync(resolved)) return res.status(404).json({ error: 'File not found' })
 
     const { syncDocToBoard } = await import('../lib/doc-parser.js')
-    const result = await syncDocToBoard(resolved, db, broadcast)
+    const result = await syncDocToBoard(resolved, sql, broadcast)
     res.json(result)
   })
 
