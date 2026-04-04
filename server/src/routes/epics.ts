@@ -84,6 +84,25 @@ export function epicsRouter(db: Database.Database, broadcast: Broadcast): Router
     res.json(updated)
   })
 
+  router.delete('/:id', (req, res) => {
+    const epic = db.prepare('SELECT * FROM epics WHERE id = ? OR short_id = ?').get(req.params.id, req.params.id) as any
+    if (!epic) return res.status(404).json({ error: 'Not found' })
+    // Cascade delete features → stories → links/events
+    const features = db.prepare('SELECT id FROM features WHERE epic_id = ?').all(epic.id) as any[]
+    for (const f of features) {
+      const stories = db.prepare('SELECT id FROM stories WHERE feature_id = ?').all(f.id) as any[]
+      for (const s of stories) {
+        db.prepare('DELETE FROM story_links WHERE from_story_id = ? OR to_story_id = ?').run(s.id, s.id)
+        db.prepare('DELETE FROM events WHERE target_id = ? AND target_type = ?').run(s.id, 'story')
+      }
+      db.prepare('DELETE FROM stories WHERE feature_id = ?').run(f.id)
+    }
+    db.prepare('DELETE FROM features WHERE epic_id = ?').run(epic.id)
+    db.prepare('DELETE FROM epics WHERE id = ?').run(epic.id)
+    broadcast({ type: 'epic.deleted', data: { id: epic.id, short_id: epic.short_id } })
+    res.status(204).send()
+  })
+
   router.post('/', (req, res) => {
     const { project_id, title, description, version } = req.body
     if (!project_id || !title) return res.status(400).json({ error: 'project_id and title required' })

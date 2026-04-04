@@ -16,13 +16,17 @@ export function storiesRouter(db: Database.Database, broadcast: Broadcast): Rout
       const resolvedFeatureId = feature?.id ?? feature_id
       rows = db.prepare('SELECT * FROM stories WHERE feature_id = ? ORDER BY created_at').all(resolvedFeatureId as string)
     } else if (project_id) {
-      rows = db.prepare(`
-        SELECT s.* FROM stories s
-        JOIN features f ON s.feature_id = f.id
-        JOIN epics e ON f.epic_id = e.id
-        WHERE e.project_id = ?
-        ORDER BY s.created_at DESC
-      `).all(project_id as string)
+      const { status, agent_id } = req.query
+      let query = `SELECT s.* FROM stories s JOIN features f ON s.feature_id = f.id JOIN epics e ON f.epic_id = e.id WHERE e.project_id = ?`
+      const params: any[] = [project_id]
+      if (status) { query += ' AND s.status = ?'; params.push(status) }
+      if (agent_id) {
+        const agent = db.prepare('SELECT id FROM agents WHERE slug = ? OR id = ?').get(agent_id as string, agent_id as string) as any
+        const resolvedId = agent?.id ?? agent_id
+        query += ' AND s.assigned_agent_id = ?'; params.push(resolvedId)
+      }
+      query += ' ORDER BY s.created_at DESC'
+      rows = db.prepare(query).all(...params)
     } else {
       rows = db.prepare('SELECT * FROM stories ORDER BY created_at DESC').all()
     }
@@ -56,7 +60,7 @@ export function storiesRouter(db: Database.Database, broadcast: Broadcast): Rout
   router.patch('/:id/status', (req, res) => {
     const { status, agent_id, comment } = req.body
     if (!status) return res.status(400).json({ error: 'status required' })
-    const story = db.prepare('SELECT * FROM stories WHERE id = ?').get(req.params.id) as any
+    const story = db.prepare('SELECT * FROM stories WHERE id = ? OR short_id = ?').get(req.params.id, req.params.id) as any
     if (!story) return res.status(404).json({ error: 'Not found' })
     // Resolve agent slug → UUID if needed
     let resolvedAgentId = agent_id ?? null
@@ -76,7 +80,7 @@ export function storiesRouter(db: Database.Database, broadcast: Broadcast): Rout
 
   router.patch('/:id', (req, res) => {
     const { title, description, priority, estimated_minutes, tags, git_branch, assigned_agent_id, acceptance_criteria } = req.body
-    const story = db.prepare('SELECT * FROM stories WHERE id = ?').get(req.params.id) as any
+    const story = db.prepare('SELECT * FROM stories WHERE id = ? OR short_id = ?').get(req.params.id, req.params.id) as any
     if (!story) return res.status(404).json({ error: 'Not found' })
     db.prepare(`UPDATE stories SET
       title = COALESCE(?, title),
@@ -99,6 +103,16 @@ export function storiesRouter(db: Database.Database, broadcast: Broadcast): Rout
     const result = { ...updated, tags: JSON.parse(updated.tags ?? '[]'), acceptance_criteria: JSON.parse(updated.acceptance_criteria ?? '[]') }
     broadcast({ type: 'story.updated', data: result })
     res.json(result)
+  })
+
+  router.delete('/:id', (req, res) => {
+    const story = db.prepare('SELECT * FROM stories WHERE id = ? OR short_id = ?').get(req.params.id, req.params.id) as any
+    if (!story) return res.status(404).json({ error: 'Not found' })
+    db.prepare('DELETE FROM story_links WHERE from_story_id = ? OR to_story_id = ?').run(story.id, story.id)
+    db.prepare('DELETE FROM events WHERE target_id = ? AND target_type = ?').run(story.id, 'story')
+    db.prepare('DELETE FROM stories WHERE id = ?').run(story.id)
+    broadcast({ type: 'story.deleted', data: { id: story.id, short_id: story.short_id } })
+    res.status(204).send()
   })
 
   router.use('/:id/links', storyLinksRouter(db, broadcast))

@@ -71,6 +71,21 @@ export function featuresRouter(db: Database.Database, broadcast: Broadcast): Rou
     res.json(result)
   })
 
+  router.delete('/:id', (req, res) => {
+    const feature = db.prepare('SELECT * FROM features WHERE id = ? OR short_id = ?').get(req.params.id, req.params.id) as any
+    if (!feature) return res.status(404).json({ error: 'Not found' })
+    // Cascade delete stories and their links/events
+    const stories = db.prepare('SELECT id FROM stories WHERE feature_id = ?').all(feature.id) as any[]
+    for (const s of stories) {
+      db.prepare('DELETE FROM story_links WHERE from_story_id = ? OR to_story_id = ?').run(s.id, s.id)
+      db.prepare('DELETE FROM events WHERE target_id = ? AND target_type = ?').run(s.id, 'story')
+    }
+    db.prepare('DELETE FROM stories WHERE feature_id = ?').run(feature.id)
+    db.prepare('DELETE FROM features WHERE id = ?').run(feature.id)
+    broadcast({ type: 'feature.deleted', data: { id: feature.id, short_id: feature.short_id } })
+    res.status(204).send()
+  })
+
   router.post('/', (req, res) => {
     const { epic_id, title, description, tags } = req.body
     if (!epic_id || !title) return res.status(400).json({ error: 'epic_id and title required' })
