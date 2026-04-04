@@ -9,7 +9,6 @@ import { storiesRouter } from './stories.js'
 import { eventsRouter } from './events.js'
 import { docsRouter } from './docs.js'
 import { adminRouter } from './admin.js'
-import { docsSyncRouter } from './docs-sync.js'
 
 export type { Broadcast } from '../ws/index.js'
 
@@ -23,7 +22,6 @@ export function createRouter(db: Database.Database, broadcast: import('../ws/ind
   router.use('/stories', storiesRouter(db, broadcast))
   router.use('/events', eventsRouter(db, broadcast))
   router.use('/docs', docsRouter(db, broadcast))
-  router.use('/docs', docsSyncRouter(db, broadcast))
   router.use('/admin', adminRouter(db))
   return router
 }

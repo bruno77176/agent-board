@@ -29,14 +29,31 @@ export function docsRouter(db?: Database.Database, broadcast?: Broadcast): Route
     res.json(files)
   })
 
-  // POST /api/docs/sync — manually trigger doc-to-board sync for a specific file
+  // POST /api/docs/sync — sync a doc to the board.
+  // Accepts either { file: "relative/path.md" } (server filesystem) or { content: "markdown..." } (raw content)
   router.post('/sync', async (req, res) => {
     if (!db || !broadcast) {
       return res.status(503).json({ error: 'Sync not available — db/broadcast not configured' })
     }
-    const { file } = req.body
+    const { file, content } = req.body
+
+    // Raw content path: write to a temp file and sync
+    if (content && typeof content === 'string') {
+      const os = await import('os')
+      const tmpFile = `${os.default.tmpdir()}/board-doc-sync-${Date.now()}.md`
+      try {
+        fs.writeFileSync(tmpFile, content, 'utf-8')
+        const { syncDocToBoard } = await import('../lib/doc-parser.js')
+        const result = await syncDocToBoard(tmpFile, db, broadcast)
+        return res.json(result)
+      } finally {
+        try { fs.unlinkSync(tmpFile) } catch {}
+      }
+    }
+
+    // File path: resolve against DOCS_ROOT
     if (!file || typeof file !== 'string') {
-      return res.status(400).json({ error: 'file path required' })
+      return res.status(400).json({ error: 'file path or content required' })
     }
     const DOCS_ROOT = process.env.DOCS_PATH ?? path.resolve(process.cwd(), '..', 'docs')
     const ROOT_WITH_SEP = DOCS_ROOT.endsWith(path.sep) ? DOCS_ROOT : DOCS_ROOT + path.sep

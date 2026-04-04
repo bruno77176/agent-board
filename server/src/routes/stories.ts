@@ -45,11 +45,11 @@ export function storiesRouter(db: Database.Database, broadcast: Broadcast): Rout
     const { feature_id, title, description, priority, tags, estimated_minutes, parent_story_id } = req.body
     if (!feature_id || !title) return res.status(400).json({ error: 'feature_id and title required' })
     const id = randomUUID()
-    const featureRow = db.prepare('SELECT f.id, e.project_id FROM features f JOIN epics e ON f.epic_id = e.id WHERE f.id = ?').get(feature_id) as any
+    const featureRow = db.prepare('SELECT f.id, e.project_id FROM features f JOIN epics e ON f.epic_id = e.id WHERE f.id = ? OR f.short_id = ?').get(feature_id, feature_id) as any
     const short_id = nextShortId(db, featureRow.project_id, 'story')
     db.prepare(`INSERT INTO stories (id, feature_id, parent_story_id, title, description, priority, tags, estimated_minutes, short_id)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .run(id, feature_id, parent_story_id ?? null, title, description ?? null,
+      .run(id, featureRow.id, parent_story_id ?? null, title, description ?? null,
            priority ?? 'medium', JSON.stringify(tags ?? []), estimated_minutes ?? null, short_id)
     const story = db.prepare('SELECT * FROM stories WHERE id = ?').get(id) as any
     const result = { ...story, tags: JSON.parse(story.tags ?? '[]'), acceptance_criteria: JSON.parse(story.acceptance_criteria ?? '[]') }
