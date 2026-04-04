@@ -192,7 +192,7 @@ export function StoryDetailView({ storyId: propStoryId, projectKey: propKey }: P
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="max-w-5xl mx-auto p-6">
+      <div className="max-w-5xl mx-auto p-4 md:p-6">
         <button onClick={() => projectKey ? navigate(`/${projectKey}/backlog`) : navigate(-1)}
           className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 mb-4">
           <ArrowLeft size={12} /> Back
@@ -224,7 +224,7 @@ export function StoryDetailView({ storyId: propStoryId, projectKey: propKey }: P
           <p className="text-xs font-mono text-slate-400 mb-1">{typedStory.short_id}</p>
         )}
 
-        <div className="grid grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
           {/* Left: main content */}
           <div className="col-span-2 space-y-6">
             {/* Title — inline edit */}
