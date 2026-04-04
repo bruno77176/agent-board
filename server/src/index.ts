@@ -15,6 +15,7 @@ import { startDocWatcher } from './lib/doc-watcher.js'
 import { registerStrategies } from './passport-strategies.js'
 
 const app = express()
+app.set('trust proxy', 1) // Railway sits behind a reverse proxy
 const server = createServer(app)
 const PORT = process.env.PORT || 3000
 
