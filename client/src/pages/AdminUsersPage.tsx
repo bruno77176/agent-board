@@ -24,9 +24,10 @@ export function AdminUsersPage() {
   if (!isAdmin) return <Navigate to="/" replace />
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
+    <div className="p-4 md:p-8 max-w-4xl mx-auto">
       <h1 className="text-2xl font-semibold text-slate-900 mb-6">Users</h1>
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
@@ -78,6 +79,7 @@ export function AdminUsersPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   )
