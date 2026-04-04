@@ -1,37 +1,36 @@
 import { Router } from 'express'
-import Database from 'better-sqlite3'
 import { randomUUID } from 'crypto'
-import { Broadcast } from '../ws/index.js'
+import type { Sql } from '../db/index.js'
 import { nextShortId } from '../db/index.js'
+import { Broadcast } from '../ws/index.js'
 
-export function epicsRouter(db: Database.Database, broadcast: Broadcast): Router {
+export function epicsRouter(sql: Sql, broadcast: Broadcast): Router {
   const router = Router()
 
-  router.get('/', (req, res) => {
+  router.get('/', async (req, res) => {
     const { project_id } = req.query
     const rows = project_id
-      ? db.prepare('SELECT * FROM epics WHERE project_id = ? ORDER BY created_at DESC').all(project_id as string)
-      : db.prepare('SELECT * FROM epics ORDER BY created_at DESC').all()
+      ? await sql`SELECT * FROM epics WHERE project_id = ${project_id as string} ORDER BY created_at DESC`
+      : await sql`SELECT * FROM epics ORDER BY created_at DESC`
     res.json(rows)
   })
 
-  router.get('/:id', (req, res) => {
-    const epic = db.prepare('SELECT * FROM epics WHERE id = ? OR short_id = ?').get(req.params.id, req.params.id) as any
+  router.get('/:id', async (req, res) => {
+    const [epic] = await sql`SELECT * FROM epics WHERE id = ${req.params.id} OR short_id = ${req.params.id}`
     if (!epic) return res.status(404).json({ error: 'Not found' })
 
-    // Include features with story count rollups
-    const features = db.prepare('SELECT * FROM features WHERE epic_id = ? ORDER BY created_at').all(epic.id) as any[]
+    const features = await sql`SELECT * FROM features WHERE epic_id = ${epic.id} ORDER BY created_at`
     const featureIds = features.map((f: any) => f.id)
 
     let storyCounts: any[] = []
     if (featureIds.length > 0) {
-      const placeholders = featureIds.map(() => '?').join(',')
-      storyCounts = db.prepare(
-        `SELECT feature_id, status, COUNT(*) as count FROM stories WHERE feature_id IN (${placeholders}) GROUP BY feature_id, status`
-      ).all(...featureIds) as any[]
+      storyCounts = await sql`
+        SELECT feature_id, status, COUNT(*)::int as count
+        FROM stories WHERE feature_id = ANY(${featureIds})
+        GROUP BY feature_id, status
+      `
     }
 
-    // Build per-feature story_counts and epic-level rollup
     const epicRollup: Record<string, number> = {}
     let epicTotal = 0
     const enrichedFeatures = features.map((f: any) => {
@@ -45,7 +44,7 @@ export function epicsRouter(db: Database.Database, broadcast: Broadcast): Router
         }
       }
       epicTotal += total
-      return { ...f, tags: JSON.parse(f.tags), story_counts: { total, ...counts } }
+      return { ...f, story_counts: { total, ...counts } }
     })
 
     res.json({
@@ -55,8 +54,8 @@ export function epicsRouter(db: Database.Database, broadcast: Broadcast): Router
     })
   })
 
-  router.patch('/:id', (req, res) => {
-    const epic = db.prepare('SELECT * FROM epics WHERE id = ? OR short_id = ?').get(req.params.id, req.params.id) as any
+  router.patch('/:id', async (req, res) => {
+    const [epic] = await sql`SELECT * FROM epics WHERE id = ${req.params.id} OR short_id = ${req.params.id}`
     if (!epic) return res.status(404).json({ error: 'Not found' })
     const { title, description, version, status, start_date, end_date } = req.body
     const VALID_EPIC_STATUSES = ['active', 'completed', 'cancelled']
@@ -64,53 +63,51 @@ export function epicsRouter(db: Database.Database, broadcast: Broadcast): Router
       return res.status(400).json({ error: `status must be one of: ${VALID_EPIC_STATUSES.join(', ')}` })
     }
 
-    const updates: string[] = []
-    const params: any[] = []
+    const hasUpdate = title !== undefined || description !== undefined || version !== undefined ||
+      status !== undefined || 'start_date' in req.body || 'end_date' in req.body
+    if (!hasUpdate) return res.json(epic)
 
-    if (title !== undefined) { updates.push('title = ?'); params.push(title) }
-    if (description !== undefined) { updates.push('description = ?'); params.push(description) }
-    if (version !== undefined) { updates.push('version = ?'); params.push(version) }
-    if (status !== undefined) { updates.push('status = ?'); params.push(status) }
-    // For dates: allow null to clear
-    if ('start_date' in req.body) { updates.push('start_date = ?'); params.push(start_date ?? null) }
-    if ('end_date' in req.body) { updates.push('end_date = ?'); params.push(end_date ?? null) }
+    await sql`
+      UPDATE epics SET
+        title = COALESCE(${title ?? null}, title),
+        description = COALESCE(${description ?? null}, description),
+        version = COALESCE(${version ?? null}, version),
+        status = COALESCE(${status ?? null}, status),
+        start_date = ${'start_date' in req.body ? (start_date ?? null) : sql`start_date`},
+        end_date = ${'end_date' in req.body ? (end_date ?? null) : sql`end_date`}
+      WHERE id = ${epic.id}
+    `
 
-    if (updates.length === 0) return res.json(epic)
-    params.push(epic.id)
-    db.prepare(`UPDATE epics SET ${updates.join(', ')} WHERE id = ?`).run(...params)
-
-    const updated = db.prepare('SELECT * FROM epics WHERE id = ?').get(epic.id)
+    const [updated] = await sql`SELECT * FROM epics WHERE id = ${epic.id}`
     broadcast({ type: 'epic.updated', data: updated })
     res.json(updated)
   })
 
-  router.delete('/:id', (req, res) => {
-    const epic = db.prepare('SELECT * FROM epics WHERE id = ? OR short_id = ?').get(req.params.id, req.params.id) as any
+  router.delete('/:id', async (req, res) => {
+    const [epic] = await sql`SELECT * FROM epics WHERE id = ${req.params.id} OR short_id = ${req.params.id}`
     if (!epic) return res.status(404).json({ error: 'Not found' })
-    // Cascade delete features → stories → links/events
-    const features = db.prepare('SELECT id FROM features WHERE epic_id = ?').all(epic.id) as any[]
+    const features = await sql`SELECT id FROM features WHERE epic_id = ${epic.id}`
     for (const f of features) {
-      const stories = db.prepare('SELECT id FROM stories WHERE feature_id = ?').all(f.id) as any[]
+      const stories = await sql`SELECT id FROM stories WHERE feature_id = ${f.id}`
       for (const s of stories) {
-        db.prepare('DELETE FROM story_links WHERE from_story_id = ? OR to_story_id = ?').run(s.id, s.id)
-        db.prepare('DELETE FROM events WHERE target_id = ? AND target_type = ?').run(s.id, 'story')
+        await sql`DELETE FROM story_links WHERE from_story_id = ${s.id} OR to_story_id = ${s.id}`
+        await sql`DELETE FROM events WHERE target_id = ${s.id} AND target_type = 'story'`
       }
-      db.prepare('DELETE FROM stories WHERE feature_id = ?').run(f.id)
+      await sql`DELETE FROM stories WHERE feature_id = ${f.id}`
     }
-    db.prepare('DELETE FROM features WHERE epic_id = ?').run(epic.id)
-    db.prepare('DELETE FROM epics WHERE id = ?').run(epic.id)
+    await sql`DELETE FROM features WHERE epic_id = ${epic.id}`
+    await sql`DELETE FROM epics WHERE id = ${epic.id}`
     broadcast({ type: 'epic.deleted', data: { id: epic.id, short_id: epic.short_id } })
     res.status(204).send()
   })
 
-  router.post('/', (req, res) => {
+  router.post('/', async (req, res) => {
     const { project_id, title, description, version } = req.body
     if (!project_id || !title) return res.status(400).json({ error: 'project_id and title required' })
     const id = randomUUID()
-    const short_id = nextShortId(db, project_id, 'epic')
-    db.prepare('INSERT INTO epics (id, project_id, title, description, version, short_id) VALUES (?, ?, ?, ?, ?, ?)')
-      .run(id, project_id, title, description ?? null, version ?? null, short_id)
-    const epic = db.prepare('SELECT * FROM epics WHERE id = ?').get(id)
+    const short_id = await nextShortId(sql, project_id, 'epic')
+    await sql`INSERT INTO epics (id, project_id, title, description, version, short_id) VALUES (${id}, ${project_id}, ${title}, ${description ?? null}, ${version ?? null}, ${short_id})`
+    const [epic] = await sql`SELECT * FROM epics WHERE id = ${id}`
     broadcast({ type: 'epic.created', data: epic })
     res.status(201).json(epic)
   })
