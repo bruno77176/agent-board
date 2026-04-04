@@ -42,6 +42,11 @@ function AppLayout({ onCreateClick }: { onCreateClick: () => void }) {
     setSidebarOpen(false)
   }, [location.pathname])
 
+  useEffect(() => {
+    document.body.style.overflow = sidebarOpen ? 'hidden' : ''
+    return () => { document.body.style.overflow = '' }
+  }, [sidebarOpen])
+
   return (
     <div className="h-screen flex flex-col bg-slate-50">
       <PendingBanner />
@@ -69,7 +74,7 @@ function AppLayout({ onCreateClick }: { onCreateClick: () => void }) {
 
         {/* Sidebar wrapper — fixed overlay on mobile, normal flex item on desktop */}
         <div className={cn(
-          'fixed left-0 top-0 h-full z-40 md:relative md:z-auto',
+          'fixed left-0 top-12 h-[calc(100%-3rem)] z-40 md:relative md:top-0 md:h-full md:z-auto',
           sidebarOpen ? 'block' : 'hidden md:block'
         )}>
           <Sidebar onCreateClick={() => { onCreateClick(); setSidebarOpen(false) }} />
