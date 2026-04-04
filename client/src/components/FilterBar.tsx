@@ -36,14 +36,14 @@ export function FilterBar({ agents, epics, filters, onChange }: Props) {
   }
 
   return (
-    <div className="flex items-center gap-2 flex-1">
+    <div className="flex flex-wrap items-center gap-2 flex-1">
       {/* Search */}
       <input
         type="search"
         placeholder="Search…"
         value={filters.search}
         onChange={e => onChange({ ...filters, search: e.target.value })}
-        className="h-7 px-2 text-xs border border-slate-200 rounded bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-300 w-36"
+        className="h-7 px-2 text-xs border border-slate-200 rounded bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-300 w-full md:w-36"
       />
 
       {/* Assignee avatar pills (multi-select) */}
