@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is **agent-jira** — a Jira-like project management system built specifically for multi-agent Claude Code workflows. It consists of three packages in a monorepo under `agent-board/`:
 
-- **server** — Express REST API + WebSocket + SQLite backend
+- **server** — Express REST API + WebSocket + PostgreSQL backend
 - **client** — React 19 + Vite frontend (Kanban board UI)
 - **mcp** — MCP server that exposes board operations as Claude Code tools
 
@@ -62,7 +62,7 @@ Workflow → Project → Epic → Feature → Story → Events (audit log)
 ### Backend (`server/src/`)
 
 - `index.ts` — Express app setup, session middleware, Passport init, CORS, static serving, WebSocket server. Mount order matters: `authRouter` is mounted before `requireAuth`.
-- `db/schema.ts` — SQLite schema. New columns are added via the `MIGRATIONS` array (append-only, run once on startup). Do not modify existing `CREATE TABLE` statements — add a migration instead.
+- `db/schema.ts` — Postgres DDL (JSONB for arrays, TIMESTAMPTZ for timestamps, SERIAL for auto-increment IDs). Schema is idempotent — all tables use `CREATE TABLE IF NOT EXISTS`. To add a new column, add `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` at the bottom of `SCHEMA`.
 - `db/seed.ts` — default agents/workflows inserted on startup if absent
 - `routes/` — One file per resource; all mutations broadcast WebSocket events for real-time UI updates. Pattern: mutate DB → call `broadcast({ type: 'resource.action', data })`.
 - `routes/auth.ts` — OAuth entry points and `/me` endpoint. Mounted at `/api/auth` before `requireAuth`.
@@ -71,12 +71,12 @@ Workflow → Project → Epic → Feature → Story → Events (audit log)
 - `middleware/auth.ts` — `requireAuth` (returns 401) and `requireAdmin` (returns 403). `requireAuth` is applied globally to all `/api` routes.
 - `passport-strategies.ts` — Registers Google and GitHub strategies. `upsertUser` handles first-user promotion to admin.
 - `doc-watcher.ts` — Watches `DOCS_PATH` for `.md` files and syncs them to the board. Frontmatter `project_key` + H1=epic / H2=feature / H3=story heading hierarchy maps to board entities.
-- Database file: `agent-board/data.db` (SQLite with WAL mode + foreign keys enforced, not checked in)
-- Complex fields (`tags`, `acceptance_criteria`, `skills`, `states`, `transitions`) are stored as JSON strings and parsed on read in all routes.
+- Database: PostgreSQL via `DATABASE_URL` env var (Railway Postgres plugin). `db/index.ts` exports `initDb()` (async startup) and `getSql()` (access anywhere after init).
+- Complex fields (`tags`, `acceptance_criteria`, `skills`, `states`, `transitions`) are stored as `JSONB` — they return as native JS objects, no `JSON.parse`/`JSON.stringify` needed.
 
 ### Short IDs vs UUIDs
 
-Every epic, feature, and story has both a `short_id` (e.g. `BOARD-E3`, `BOARD-F17`, `BOARD-42`) for display and a UUID `id` for API calls. **All API endpoints and MCP tools require UUIDs** — short IDs are display-only. Passing a short ID to a write endpoint will silently fail or 404.
+Every epic, feature, and story has both a `short_id` (e.g. `BOARD-E3`, `BOARD-F17`, `BOARD-42`) for display and a UUID `id`. All read and write endpoints accept either UUID or short_id.
 
 ### Frontend (`client/src/`)
 
@@ -104,7 +104,7 @@ Every epic, feature, and story has both a `short_id` (e.g. `BOARD-E3`, `BOARD-F1
 | `GITHUB_CLIENT_SECRET` | — | GitHub OAuth client secret |
 | `BASE_URL` | `http://localhost:3000` | Public URL of the app; used for OAuth callback URLs and CORS origin |
 | `BOARD_URL` | `http://localhost:3000` | MCP server → board URL |
-| `DATA_DIR` | cwd | Directory for `data.db` SQLite file |
+| `DATABASE_URL` | — | PostgreSQL connection string — auto-injected by Railway Postgres plugin |
 | `DOCS_PATH` | `../docs` | Root directory watched for markdown doc sync |
 
 ## MCP Tools Available
