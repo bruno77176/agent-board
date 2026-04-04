@@ -55,6 +55,7 @@ server.tool(
     name: z.string().describe('Full project name'),
     description: z.string().optional(),
     workflow_id: z.enum(['light', 'standard', 'full']).default('standard'),
+    is_public: z.coerce.number().int().min(0).max(1).optional().default(0).describe('1 = public, 0 = private (default)'),
   },
   async (args) => {
     const project = await board.createProject(args)
@@ -160,7 +161,10 @@ server.tool(
     epic_id: z.string(),
     title: z.string(),
     description: z.string().optional(),
-    tags: z.array(z.string()).optional(),
+    tags: z.preprocess(v => {
+      if (typeof v === 'string') { try { return JSON.parse(v) } catch { return [] } }
+      return v
+    }, z.array(z.string()).optional()),
   },
   async (args) => {
     const feature = await board.createFeature(args)
@@ -176,8 +180,11 @@ server.tool(
     title: z.string(),
     description: z.string().optional(),
     priority: z.enum(['high', 'medium', 'low']).optional().default('medium'),
-    tags: z.array(z.string()).optional(),
-    estimated_minutes: z.number().optional().describe('Estimated minutes. Warn if >10.'),
+    tags: z.preprocess(v => {
+      if (typeof v === 'string') { try { return JSON.parse(v) } catch { return [] } }
+      return v
+    }, z.array(z.string()).optional()),
+    estimated_minutes: z.coerce.number().optional().describe('Estimated minutes. Warn if >10.'),
     parent_story_id: z.string().optional().describe('For TDD sub-stories'),
   },
   async (args) => {
@@ -237,7 +244,7 @@ server.tool(
   {
     story_id: z.string(),
     agent_id: z.string().optional(),
-    checklist_confirmed: z.boolean().describe('Set true only if: tests pass, code reviewed, no regressions'),
+    checklist_confirmed: z.preprocess(v => v === 'true' || v === true, z.boolean()).describe('Set true only if: tests pass, code reviewed, no regressions'),
   },
   async ({ story_id, agent_id, checklist_confirmed }) => {
     if (!checklist_confirmed) {
@@ -338,8 +345,11 @@ server.tool(
     title: z.string().optional(),
     description: z.string().optional(),
     priority: z.enum(['high', 'medium', 'low']).optional(),
-    estimated_minutes: z.number().optional(),
-    tags: z.array(z.string()).optional(),
+    estimated_minutes: z.coerce.number().optional(),
+    tags: z.preprocess(v => {
+      if (typeof v === 'string') { try { return JSON.parse(v) } catch { return [] } }
+      return v
+    }, z.array(z.string()).optional()),
     acceptance_criteria: z.array(z.object({
       id: z.string(),
       text: z.string(),
@@ -388,6 +398,78 @@ server.tool(
   async ({ story_id, link_id }) => {
     await board.deleteStoryLink(story_id, link_id)
     return { content: [{ type: 'text' as const, text: 'Link deleted.' }] }
+  }
+)
+
+server.tool(
+  'update_feature',
+  'Update a feature title or description',
+  {
+    feature_id: z.string().describe('Feature ID or short_id'),
+    title: z.string().optional(),
+    description: z.string().optional(),
+  },
+  async ({ feature_id, ...updates }) => {
+    const feature = await board.updateFeature(feature_id, updates)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(feature, null, 2) }] }
+  }
+)
+
+server.tool(
+  'delete_story',
+  'Permanently delete a story and all its events and links',
+  { story_id: z.string().describe('Story ID or short_id') },
+  async ({ story_id }) => {
+    await board.deleteStory(story_id)
+    return { content: [{ type: 'text' as const, text: `Story ${story_id} deleted.` }] }
+  }
+)
+
+server.tool(
+  'delete_feature',
+  'Permanently delete a feature and all its stories',
+  { feature_id: z.string().describe('Feature ID or short_id') },
+  async ({ feature_id }) => {
+    await board.deleteFeature(feature_id)
+    return { content: [{ type: 'text' as const, text: `Feature ${feature_id} deleted.` }] }
+  }
+)
+
+server.tool(
+  'delete_epic',
+  'Permanently delete an epic and all its features and stories',
+  { epic_id: z.string().describe('Epic ID or short_id') },
+  async ({ epic_id }) => {
+    await board.deleteEpic(epic_id)
+    return { content: [{ type: 'text' as const, text: `Epic ${epic_id} deleted.` }] }
+  }
+)
+
+server.tool(
+  'list_stories',
+  'List stories with optional filters. At least one filter required.',
+  {
+    project_id: z.string().optional().describe('Filter by project ID'),
+    feature_id: z.string().optional().describe('Filter by feature ID or short_id'),
+    status: z.string().optional().describe('Filter by status: backlog, todo, in_progress, review, qa, done'),
+    agent_id: z.string().optional().describe('Filter by agent slug or ID'),
+  },
+  async (params) => {
+    if (!params.project_id && !params.feature_id) {
+      throw new Error('list_stories requires at least project_id or feature_id')
+    }
+    const stories = await board.listStories(params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(stories, null, 2) }] }
+  }
+)
+
+server.tool(
+  'sync_doc',
+  'Sync a markdown document to the board. The doc must have frontmatter "project: KEY" and use H1=epic, H2=feature, H3=story structure.',
+  { content: z.string().describe('Full markdown content including frontmatter') },
+  async ({ content }) => {
+    const result = await board.syncDoc(content)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] }
   }
 )
 

@@ -13,6 +13,7 @@ async function call(path: string, method = 'GET', body?: object): Promise<any> {
     const text = await res.text()
     throw new Error(`Board API ${method} ${path} → ${res.status}: ${text}`)
   }
+  if (res.status === 204) return null
   return res.json()
 }
 
@@ -45,4 +46,15 @@ export const board = {
   deleteStoryLink: (story_id: string, link_id: string) =>
     call(`/stories/${story_id}/links/${link_id}`, 'DELETE'),
   updateEpic: (id: string, data: object) => call(`/epics/${id}`, 'PATCH', data),
+  updateFeature: (id: string, data: object) => call(`/features/${id}`, 'PATCH', data),
+  deleteStory: (id: string) => call(`/stories/${id}`, 'DELETE'),
+  deleteFeature: (id: string) => call(`/features/${id}`, 'DELETE'),
+  deleteEpic: (id: string) => call(`/epics/${id}`, 'DELETE'),
+  listStories: (params: { project_id?: string; feature_id?: string; status?: string; agent_id?: string }) => {
+    const qs = new URLSearchParams(
+      Object.entries(params).filter(([, v]) => v) as [string, string][]
+    ).toString()
+    return call(`/stories?${qs}`)
+  },
+  syncDoc: (content: string) => call('/docs/sync', 'POST', { content }),
 }
