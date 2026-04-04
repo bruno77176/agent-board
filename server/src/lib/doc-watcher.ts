@@ -1,10 +1,10 @@
 import fs from 'fs'
 import path from 'path'
-import Database from 'better-sqlite3'
+import type { Sql } from '../db/index.js'
 import { Broadcast } from '../ws/index.js'
 import { syncDocToBoard } from './doc-parser.js'
 
-export function startDocWatcher(db: Database.Database, docsRoot: string, broadcast: Broadcast) {
+export function startDocWatcher(sql: Sql, docsRoot: string, broadcast: Broadcast) {
   if (!fs.existsSync(docsRoot)) {
     console.log('[doc-watcher] Docs directory not found, watcher disabled:', docsRoot)
     return
@@ -21,7 +21,7 @@ export function startDocWatcher(db: Database.Database, docsRoot: string, broadca
     async function handleFile(filePath: string) {
       console.log('[doc-watcher] Processing:', filePath)
       try {
-        const result = await syncDocToBoard(filePath, db, broadcast)
+        const result = await syncDocToBoard(filePath, sql, broadcast)
         if (result.created) {
           broadcast({ type: 'doc.synced', data: { path: filePath, message: result.message } })
         }

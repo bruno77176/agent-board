@@ -1,5 +1,5 @@
-import Database from 'better-sqlite3'
 import { randomUUID } from 'crypto'
+import type { Sql } from '../db/index.js'
 import { nextShortId } from '../db/index.js'
 import { Broadcast } from '../ws/index.js'
 
@@ -146,7 +146,7 @@ export function parseDocStructure(markdown: string): Omit<ParsedDoc, 'project_ke
  */
 export async function syncDocToBoard(
   filePath: string,
-  db: Database.Database,
+  sql: Sql,
   broadcast: Broadcast
 ): Promise<{ created: boolean; message: string }> {
   const fs = await import('fs')
@@ -162,56 +162,53 @@ export async function syncDocToBoard(
     return { created: false, message: 'No H1 heading found — skipped' }
   }
 
-  // Look up project
-  const project = db.prepare('SELECT * FROM projects WHERE key = ? COLLATE NOCASE').get(data.project) as any
+  // Look up project (case-insensitive)
+  const [project] = await sql`SELECT * FROM projects WHERE LOWER(key) = LOWER(${data.project})`
   if (!project) {
     return { created: false, message: `Project "${data.project}" not found` }
   }
 
   // Get or create epic (don't bail on existing — allow adding new features/stories on file change)
   let epicId: string
-  const existingEpic = db.prepare('SELECT * FROM epics WHERE project_id = ? AND title = ?')
-    .get(project.id, structure.epic.title) as any
+  const [existingEpic] = await sql`SELECT * FROM epics WHERE project_id = ${project.id} AND title = ${structure.epic.title}`
 
   if (existingEpic) {
     epicId = existingEpic.id
   } else {
     epicId = randomUUID()
-    const epicShortId = nextShortId(db, project.id, 'epic')
-    db.prepare('INSERT INTO epics (id, project_id, title, description, short_id) VALUES (?, ?, ?, ?, ?)')
-      .run(epicId, project.id, structure.epic.title, structure.epic.description || null, epicShortId)
-    const epic = db.prepare('SELECT * FROM epics WHERE id = ?').get(epicId)
+    const epicShortId = await nextShortId(sql, project.id, 'epic')
+    await sql`INSERT INTO epics (id, project_id, title, description, short_id) VALUES (${epicId}, ${project.id}, ${structure.epic.title}, ${structure.epic.description || null}, ${epicShortId})`
+    const [epic] = await sql`SELECT * FROM epics WHERE id = ${epicId}`
     broadcast({ type: 'epic.created', data: epic })
   }
 
   let totalStories = 0
 
   for (const feat of structure.features) {
-    const existingFeat = db.prepare('SELECT * FROM features WHERE epic_id = ? AND title = ?')
-      .get(epicId, feat.title) as any
+    const [existingFeat] = await sql`SELECT * FROM features WHERE epic_id = ${epicId} AND title = ${feat.title}`
     const featId = existingFeat?.id ?? randomUUID()
 
     if (!existingFeat) {
-      const featShortId = nextShortId(db, project.id, 'feature')
-      db.prepare('INSERT INTO features (id, epic_id, title, description, short_id, tags) VALUES (?, ?, ?, ?, ?, ?)')
-        .run(featId, epicId, feat.title, feat.description || null, featShortId, '[]')
-      const feature = db.prepare('SELECT * FROM features WHERE id = ?').get(featId)
+      const featShortId = await nextShortId(sql, project.id, 'feature')
+      await sql`
+        INSERT INTO features (id, epic_id, title, description, short_id, tags)
+        VALUES (${featId}, ${epicId}, ${feat.title}, ${feat.description || null}, ${featShortId}, ${sql.json([])})
+      `
+      const [feature] = await sql`SELECT * FROM features WHERE id = ${featId}`
       broadcast({ type: 'feature.created', data: feature })
     }
 
     for (const story of feat.stories) {
-      const existingStory = db.prepare('SELECT * FROM stories WHERE feature_id = ? AND title = ?')
-        .get(featId, story.title) as any
+      const [existingStory] = await sql`SELECT * FROM stories WHERE feature_id = ${featId} AND title = ${story.title}`
       if (existingStory) continue
 
       const storyId = randomUUID()
-      const storyShortId = nextShortId(db, project.id, 'story')
-      const acJson = JSON.stringify(story.acceptance_criteria)
-      db.prepare(`INSERT INTO stories
-        (id, feature_id, title, description, priority, status, short_id, tags, acceptance_criteria)
-        VALUES (?, ?, ?, ?, ?, 'backlog', ?, '[]', ?)`)
-        .run(storyId, featId, story.title, story.description || null, story.priority, storyShortId, acJson)
-      const newStory = db.prepare('SELECT * FROM stories WHERE id = ?').get(storyId)
+      const storyShortId = await nextShortId(sql, project.id, 'story')
+      await sql`
+        INSERT INTO stories (id, feature_id, title, description, priority, status, short_id, tags, acceptance_criteria)
+        VALUES (${storyId}, ${featId}, ${story.title}, ${story.description || null}, ${story.priority}, 'backlog', ${storyShortId}, ${sql.json([])}, ${sql.json(story.acceptance_criteria)})
+      `
+      const [newStory] = await sql`SELECT * FROM stories WHERE id = ${storyId}`
       broadcast({ type: 'story.created', data: newStory })
       totalStories++
     }
