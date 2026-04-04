@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3'
+import postgres from 'postgres'
 import { randomUUID } from 'crypto'
 import fs from 'fs'
 import path from 'path'
@@ -107,37 +107,42 @@ const AGENTS = [
   { slug: 'pip-lynn',  name: 'Pip Lynn',  scope: 'DevOps, CI/CD & infrastructure',    color: '#22c55e', avatar_emoji: '🛠️', skills: [sp('superpowers:devops')] },
 ]
 
-export function seed(db: Database.Database): void {
-  const insertWorkflow = db.prepare(
-    'INSERT OR IGNORE INTO workflows (id, name, states, transitions) VALUES (?, ?, ?, ?)'
-  )
+export async function seed(sql: postgres.Sql): Promise<void> {
   for (const w of WORKFLOWS) {
-    insertWorkflow.run(w.id, w.name, JSON.stringify(w.states), JSON.stringify(w.transitions))
+    await sql`
+      INSERT INTO workflows (id, name, states, transitions)
+      VALUES (${w.id}, ${w.name}, ${sql.json(w.states)}, ${sql.json(w.transitions)})
+      ON CONFLICT (id) DO NOTHING
+    `
   }
 
-  const insertAgent = db.prepare(
-    'INSERT OR IGNORE INTO agents (id, slug, name, scope, color, avatar_emoji, skills) VALUES (?, ?, ?, ?, ?, ?, ?)'
-  )
   for (const a of AGENTS) {
-    // INSERT OR IGNORE — only sets skills on first creation, never overwrites user-configured skills
-    insertAgent.run(randomUUID(), a.slug, a.name, a.scope, a.color, a.avatar_emoji, JSON.stringify(a.skills))
+    await sql`
+      INSERT INTO agents (id, slug, name, scope, color, avatar_emoji, skills)
+      VALUES (${randomUUID()}, ${a.slug}, ${a.name}, ${a.scope ?? null}, ${a.color}, ${a.avatar_emoji}, ${sql.json(a.skills)})
+      ON CONFLICT (slug) DO UPDATE SET
+        name = EXCLUDED.name,
+        scope = EXCLUDED.scope,
+        color = EXCLUDED.color,
+        avatar_emoji = EXCLUDED.avatar_emoji,
+        skills = EXCLUDED.skills
+    `
   }
 
   // Migration 1: convert old string[] skills → {name, content}[]
-  const allAgents = db.prepare('SELECT id, slug, skills FROM agents').all() as any[]
-  const migrateSkills = db.prepare('UPDATE agents SET skills = ? WHERE id = ?')
+  const allAgents = await sql`SELECT id, slug, skills FROM agents`
   for (const agent of allAgents) {
-    const parsed = JSON.parse(agent.skills ?? '[]')
+    const parsed = agent.skills ?? []
     if (parsed.length > 0 && typeof parsed[0] === 'string') {
       const migrated = parsed.map((s: string) => ({ name: s, content: '' }))
-      migrateSkills.run(JSON.stringify(migrated), agent.id)
+      await sql`UPDATE agents SET skills = ${sql.json(migrated)} WHERE id = ${agent.id}`
     }
   }
 
   // Migration 2: fill in content for superpowers: skills that have empty content
-  const allAgents2 = db.prepare('SELECT id, skills FROM agents').all() as any[]
+  const allAgents2 = await sql`SELECT id, skills FROM agents`
   for (const agent of allAgents2) {
-    const skills = JSON.parse(agent.skills ?? '[]') as { name: string; content: string }[]
+    const skills = (agent.skills ?? []) as { name: string; content: string }[]
     let changed = false
     const updated = skills.map(skill => {
       if (skill.content === '' && skill.name.startsWith('superpowers:')) {
@@ -147,6 +152,6 @@ export function seed(db: Database.Database): void {
       }
       return skill
     })
-    if (changed) migrateSkills.run(JSON.stringify(updated), agent.id)
+    if (changed) await sql`UPDATE agents SET skills = ${sql.json(updated)} WHERE id = ${agent.id}`
   }
 }
