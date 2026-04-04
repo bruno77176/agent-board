@@ -1,58 +1,54 @@
 import { Router } from 'express'
-import Database from 'better-sqlite3'
 import { randomUUID } from 'crypto'
+import type { Sql } from '../db/index.js'
 import { Broadcast } from '../ws/index.js'
 import { membersRouter } from './members.js'
 
-export function projectsRouter(db: Database.Database, broadcast: Broadcast): Router {
+export function projectsRouter(sql: Sql, broadcast: Broadcast): Router {
   const router = Router()
 
-  router.get('/', (req, res) => {
+  router.get('/', async (req, res) => {
     const user = req.user as any
     if (user.role === 'admin') {
-      return res.json(db.prepare('SELECT * FROM projects ORDER BY created_at DESC').all())
+      return res.json(await sql`SELECT * FROM projects ORDER BY created_at DESC`)
     }
-    // Members see: public projects + projects they're explicitly added to
-    const rows = db.prepare(`
+    const rows = await sql`
       SELECT DISTINCT p.* FROM projects p
-      LEFT JOIN project_members pm ON pm.project_id = p.id AND pm.user_id = ?
+      LEFT JOIN project_members pm ON pm.project_id = p.id AND pm.user_id = ${user.id}
       WHERE p.is_public = 1 OR pm.user_id IS NOT NULL
       ORDER BY p.created_at DESC
-    `).all(user.id)
+    `
     res.json(rows)
   })
 
-  router.get('/:id', (req, res) => {
-    const row = db.prepare('SELECT * FROM projects WHERE id = ? OR key = ?').get(req.params.id, req.params.id)
+  router.get('/:id', async (req, res) => {
+    const [row] = await sql`SELECT * FROM projects WHERE id = ${req.params.id} OR key = ${req.params.id}`
     if (!row) return res.status(404).json({ error: 'Not found' })
     res.json(row)
   })
 
-  router.get('/:id/overview', (req, res) => {
-    const project = db.prepare('SELECT * FROM projects WHERE id = ? OR key = ?').get(req.params.id, req.params.id) as any
+  router.get('/:id/overview', async (req, res) => {
+    const [project] = await sql`SELECT * FROM projects WHERE id = ${req.params.id} OR key = ${req.params.id}`
     if (!project) return res.status(404).json({ error: 'Not found' })
 
-    const epics = db.prepare('SELECT * FROM epics WHERE project_id = ? ORDER BY created_at DESC').all(project.id) as any[]
+    const epics = await sql`SELECT * FROM epics WHERE project_id = ${project.id} ORDER BY created_at DESC`
     const epicIds = epics.map((e: any) => e.id)
 
     let features: any[] = []
     let storyCounts: any[] = []
     if (epicIds.length > 0) {
-      const placeholders = epicIds.map(() => '?').join(',')
-      features = db.prepare(
-        `SELECT * FROM features WHERE epic_id IN (${placeholders}) ORDER BY created_at`
-      ).all(...epicIds) as any[]
+      features = await sql`SELECT * FROM features WHERE epic_id = ANY(${epicIds}) ORDER BY created_at`
 
       const featureIds = features.map((f: any) => f.id)
       if (featureIds.length > 0) {
-        const fPlaceholders = featureIds.map(() => '?').join(',')
-        storyCounts = db.prepare(
-          `SELECT feature_id, status, COUNT(*) as count FROM stories WHERE feature_id IN (${fPlaceholders}) GROUP BY feature_id, status`
-        ).all(...featureIds) as any[]
+        storyCounts = await sql`
+          SELECT feature_id, status, COUNT(*)::int as count
+          FROM stories WHERE feature_id = ANY(${featureIds})
+          GROUP BY feature_id, status
+        `
       }
     }
 
-    // Build story counts map by feature_id
     const featureCountsMap = new Map<string, { total: number; [status: string]: number }>()
     for (const row of storyCounts) {
       if (!featureCountsMap.has(row.feature_id)) featureCountsMap.set(row.feature_id, { total: 0 })
@@ -61,13 +57,11 @@ export function projectsRouter(db: Database.Database, broadcast: Broadcast): Rou
       entry.total += row.count
     }
 
-    // Nest features under epics with rollups
     const enrichedEpics = epics.map((epic: any) => {
       const epicFeatures = features
         .filter((f: any) => f.epic_id === epic.id)
         .map((f: any) => ({
           ...f,
-          tags: JSON.parse(f.tags),
           story_counts: featureCountsMap.get(f.id) || { total: 0 },
         }))
 
@@ -87,18 +81,16 @@ export function projectsRouter(db: Database.Database, broadcast: Broadcast): Rou
       }
     })
 
-    // Recent activity (last 20 events for this project's entities)
     let recentActivity: any[] = []
     if (epicIds.length > 0) {
       const featureIds = features.map((f: any) => f.id)
       if (featureIds.length > 0) {
-        const fPlaceholders = featureIds.map(() => '?').join(',')
-        recentActivity = db.prepare(
-          `SELECT ev.* FROM events ev
-           JOIN stories s ON ev.target_id = s.id AND ev.target_type = 'story'
-           WHERE s.feature_id IN (${fPlaceholders})
-           ORDER BY ev.created_at DESC LIMIT 20`
-        ).all(...featureIds) as any[]
+        recentActivity = await sql`
+          SELECT ev.* FROM events ev
+          JOIN stories s ON ev.target_id = s.id AND ev.target_type = 'story'
+          WHERE s.feature_id = ANY(${featureIds})
+          ORDER BY ev.created_at DESC LIMIT 20
+        `
       }
     }
 
@@ -109,36 +101,39 @@ export function projectsRouter(db: Database.Database, broadcast: Broadcast): Rou
     })
   })
 
-  router.post('/', (req, res) => {
+  router.post('/', async (req, res) => {
     const { key, name, description, workflow_id, is_public = 0 } = req.body
     if (!key || !name || !workflow_id) return res.status(400).json({ error: 'key, name, workflow_id required' })
     try {
       const id = randomUUID()
-      db.prepare('INSERT INTO projects (id, key, name, description, workflow_id, is_public) VALUES (?, ?, ?, ?, ?, ?)')
-        .run(id, key.toUpperCase(), name, description ?? null, workflow_id, is_public ? 1 : 0)
-      const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(id)
+      await sql`
+        INSERT INTO projects (id, key, name, description, workflow_id, is_public)
+        VALUES (${id}, ${key.toUpperCase()}, ${name}, ${description ?? null}, ${workflow_id}, ${is_public ? 1 : 0})
+      `
+      const [project] = await sql`SELECT * FROM projects WHERE id = ${id}`
       broadcast({ type: 'project.created', data: project })
       res.status(201).json(project)
     } catch (e: any) {
-      if (e.message?.includes('UNIQUE')) return res.status(409).json({ error: 'Project key already exists' })
+      if (e.code === '23505') return res.status(409).json({ error: 'Project key already exists' })
       throw e
     }
   })
 
-  router.patch('/:id', (req, res) => {
+  router.patch('/:id', async (req, res) => {
     const user = req.user as any
     if (user.role !== 'admin') return res.status(403).json({ error: 'Admin only' })
     const { is_public } = req.body
-    const result = db.prepare('UPDATE projects SET is_public = ? WHERE id = ? OR key = ?')
-      .run(is_public ? 1 : 0, req.params.id, req.params.id)
-    if (result.changes === 0) return res.status(404).json({ error: 'Not found' })
-    const project = db.prepare('SELECT * FROM projects WHERE id = ? OR key = ?')
-      .get(req.params.id, req.params.id)
-    broadcast({ type: 'project.updated', data: project })
-    res.json(project)
+    const updated = await sql`
+      UPDATE projects SET is_public = ${is_public ? 1 : 0}
+      WHERE id = ${req.params.id} OR key = ${req.params.id}
+      RETURNING *
+    `
+    if (updated.length === 0) return res.status(404).json({ error: 'Not found' })
+    broadcast({ type: 'project.updated', data: updated[0] })
+    res.json(updated[0])
   })
 
-  router.use('/:id/members', membersRouter(db))
+  router.use('/:id/members', membersRouter(sql))
 
   return router
 }
