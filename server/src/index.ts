@@ -61,6 +61,7 @@ passport.deserializeUser((id: unknown, done) => {
 registerStrategies(db)
 
 const broadcast = createWsServer(server)
+app.get('/health', (_req, res) => res.json({ ok: true }))
 app.use('/api/auth', authRouter())
 app.use('/api', requireAuth, createRouter(db, broadcast))
 
