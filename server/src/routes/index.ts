@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import Database from 'better-sqlite3'
+import type { Sql } from '../db/index.js'
 import { projectsRouter } from './projects.js'
 import { agentsRouter } from './agents.js'
 import { workflowsRouter } from './workflows.js'
@@ -12,16 +12,16 @@ import { adminRouter } from './admin.js'
 
 export type { Broadcast } from '../ws/index.js'
 
-export function createRouter(db: Database.Database, broadcast: import('../ws/index.js').Broadcast): Router {
+export function createRouter(sql: Sql, broadcast: import('../ws/index.js').Broadcast): Router {
   const router = Router()
-  router.use('/projects', projectsRouter(db, broadcast))
-  router.use('/agents', agentsRouter(db))
-  router.use('/workflows', workflowsRouter(db))
-  router.use('/epics', epicsRouter(db, broadcast))
-  router.use('/features', featuresRouter(db, broadcast))
-  router.use('/stories', storiesRouter(db, broadcast))
-  router.use('/events', eventsRouter(db, broadcast))
-  router.use('/docs', docsRouter(db, broadcast))
-  router.use('/admin', adminRouter(db))
+  router.use('/projects', projectsRouter(sql, broadcast))
+  router.use('/agents', agentsRouter(sql))
+  router.use('/workflows', workflowsRouter(sql))
+  router.use('/epics', epicsRouter(sql, broadcast))
+  router.use('/features', featuresRouter(sql, broadcast))
+  router.use('/stories', storiesRouter(sql, broadcast))
+  router.use('/events', eventsRouter(sql, broadcast))
+  router.use('/docs', docsRouter(sql, broadcast))
+  router.use('/admin', adminRouter(sql))
   return router
 }
