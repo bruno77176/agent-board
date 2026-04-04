@@ -1,12 +1,12 @@
 import { Router } from 'express'
-import Database from 'better-sqlite3'
+import type { Sql } from '../db/index.js'
 import { Broadcast } from '../ws/index.js'
 import { syncDocToBoard } from '../lib/doc-parser.js'
 import * as os from 'os'
 import * as path from 'path'
 import * as fs from 'fs'
 
-export function docsSyncRouter(db: Database.Database, broadcast: Broadcast): Router {
+export function docsSyncRouter(sql: Sql, broadcast: Broadcast): Router {
   const router = Router()
 
   // POST /api/docs/sync — accept { content: string } markdown body and sync to board
@@ -19,7 +19,7 @@ export function docsSyncRouter(db: Database.Database, broadcast: Broadcast): Rou
     const tmpFile = path.join(os.tmpdir(), `board-doc-sync-${Date.now()}.md`)
     try {
       fs.writeFileSync(tmpFile, content, 'utf-8')
-      const result = await syncDocToBoard(tmpFile, db, broadcast)
+      const result = await syncDocToBoard(tmpFile, sql, broadcast)
       res.json(result)
     } finally {
       try { fs.unlinkSync(tmpFile) } catch {}
