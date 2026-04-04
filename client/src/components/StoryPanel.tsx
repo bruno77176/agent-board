@@ -63,7 +63,7 @@ export function StoryPanel({ storyId, onClose }: Props) {
   const assignedAgent = typedStory?.assigned_agent_id ? agentMap[typedStory.assigned_agent_id] : null
 
   return (
-    <div className="w-[440px] flex-shrink-0 border-l border-slate-200 bg-white flex flex-col h-full overflow-hidden shadow-lg">
+    <div className="fixed inset-0 z-50 md:relative md:inset-auto md:z-auto md:w-[440px] md:flex-shrink-0 border-l border-slate-200 bg-white flex flex-col h-full overflow-hidden shadow-lg">
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200 bg-white flex-shrink-0">
         {typedStory?.short_id && (
