@@ -78,13 +78,49 @@ type: implementation-plan
 
 Items are created idempotently — re-saving a plan adds new tasks without duplicating existing ones.
 
+## Deployment
+
+The app is deployed on [Railway](https://railway.app) using **Nixpacks** — no Dockerfile needed. Railway detects Node.js, runs the build, then starts the server. One process serves both the API and the React frontend.
+
+### Pre-built client
+
+**`client/dist/` is committed to git.** Railway's build environment is pinned to Node 18, which is incompatible with Vite 8 (requires Node 20.19+). The workaround is to build the client locally and commit the compiled output.
+
+**Whenever you change frontend code, rebuild before pushing:**
+
+```bash
+npm run build:local    # client + server + mcp
+git add client/dist/
+git commit -m "chore: rebuild client dist"
+git push
+```
+
+Skipping this means users will see the old UI.
+
+### Auth setup (OAuth)
+
+**Google** — [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → Credentials → OAuth 2.0 Client ID:
+- Authorized JavaScript origins: `BASE_URL`
+- Authorized redirect URIs: `BASE_URL/api/auth/google/callback`
+
+**GitHub** — GitHub → Settings → Developer settings → OAuth Apps → New OAuth App:
+- Callback URL: `BASE_URL/api/auth/github/callback`
+
+The first user to log in is automatically promoted to admin. All subsequent users start as `pending` and require admin approval from `/admin/users`.
+
 ## Environment Variables
 
-| Variable | Default | Purpose |
+| Variable | Required | Purpose |
 |---|---|---|
-| `BOARD_URL` | `http://localhost:3000` | MCP → board URL |
-| `DATA_DIR` | cwd | Directory for `data.db` SQLite file |
-| `DOCS_PATH` | `../docs` | Root directory watched for markdown sync |
+| `SESSION_SECRET` | Yes (prod) | Random 32+ char string for session signing |
+| `GOOGLE_CLIENT_ID` | Yes | Google OAuth client ID |
+| `GOOGLE_CLIENT_SECRET` | Yes | Google OAuth client secret |
+| `GITHUB_CLIENT_ID` | Yes | GitHub OAuth client ID |
+| `GITHUB_CLIENT_SECRET` | Yes | GitHub OAuth client secret |
+| `BASE_URL` | Yes (prod) | Public URL of the app, e.g. `https://yourapp.railway.app` |
+| `BOARD_URL` | MCP only | URL the MCP server uses to reach the board (default: `http://localhost:3000`) |
+| `DATA_DIR` | No | Directory for `data.db` SQLite file (default: cwd) |
+| `DOCS_PATH` | No | Directory watched for markdown doc sync (default: `../docs`) |
 
 ## Agent Roster
 
