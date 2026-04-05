@@ -38,7 +38,7 @@ export function EpicsView({ projectId }: Props) {
               <button
                 key={epic.id}
                 onClick={() => navigate(`/${paramKey ?? ''}/epics/${epic.short_id ?? epic.id}`)}
-                className="text-left w-full px-4 py-3 bg-white border-b border-slate-100 hover:bg-slate-50 transition-colors flex items-center gap-3"
+                className="text-left w-full px-4 py-3 bg-white hover:bg-slate-50 transition-colors flex items-center gap-3"
               >
                 {epic.short_id && (
                   <span className="text-xs font-mono text-slate-400 flex-shrink-0 w-20">{epic.short_id}</span>
