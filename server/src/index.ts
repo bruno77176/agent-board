@@ -12,7 +12,6 @@ import { createRouter } from './routes/index.js'
 import { authRouter } from './routes/auth.js'
 import { requireAuth } from './middleware/auth.js'
 import { createWsServer } from './ws/index.js'
-import { startDocWatcher } from './lib/doc-watcher.js'
 import { registerStrategies } from './passport-strategies.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -75,9 +74,6 @@ async function main() {
     app.use(express.static(clientDist))
     app.get('*', (_: any, res: any) => res.sendFile(path.join(clientDist, 'index.html')))
   }
-
-  const DOCS_ROOT = process.env.DOCS_PATH ?? path.resolve(process.cwd(), '..', 'docs')
-  startDocWatcher(sql, DOCS_ROOT, broadcast)
 
   server.listen(PORT, () => {
     console.log(`Agent Board running on http://localhost:${PORT}`)
