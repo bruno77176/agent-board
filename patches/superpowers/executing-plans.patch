@@ -1,0 +1,14 @@
+--- a/skills/executing-plans/SKILL.md
++++ b/skills/executing-plans/SKILL.md
+@@ -22,6 +22,11 @@
+ 
+ ### Step 2: Execute Tasks
+ 
++**Board tracking (if a `story_id` was provided in your task):**
++Call `start_story(story_id, agent_id)` before step 1 below.
++Call `complete_story(story_id, agent_id, checklist_confirmed: true)` after step 3, only when the build passes and every acceptance criterion is confirmed met.
++If no `story_id` was provided, skip this entirely — no change to normal behavior.
++
+ For each task:
+ 1. Mark as in_progress
+ 2. Follow each step exactly (plan has bite-sized steps)
