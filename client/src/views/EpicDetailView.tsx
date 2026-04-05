@@ -81,15 +81,16 @@ export function EpicDetailView({ epicId }: Props) {
                   className="ml-2 text-xs border border-slate-200 rounded px-2 py-0.5" />
               </label>
               {typedEpic.source_doc && (
-                <a
-                  href={`/docs/${typedEpic.source_doc}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  onClick={() => {
+                    const slug = typedEpic.source_doc!.split('/').pop()!.replace(/\.md$/, '')
+                    navigate(`/${projectKey}/docs/${slug}`)
+                  }}
                   className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline"
                 >
                   <span>📄</span>
                   <span>{planDisplayName(typedEpic.source_doc)}</span>
-                </a>
+                </button>
               )}
             </div>
           </div>

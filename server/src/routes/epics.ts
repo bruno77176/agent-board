@@ -57,14 +57,14 @@ export function epicsRouter(sql: Sql, broadcast: Broadcast): Router {
   router.patch('/:id', async (req, res) => {
     const [epic] = await sql`SELECT * FROM epics WHERE id = ${req.params.id} OR short_id = ${req.params.id}`
     if (!epic) return res.status(404).json({ error: 'Not found' })
-    const { title, description, version, status, start_date, end_date } = req.body
+    const { title, description, version, status, start_date, end_date, source_doc } = req.body
     const VALID_EPIC_STATUSES = ['active', 'completed', 'cancelled']
     if (status && !VALID_EPIC_STATUSES.includes(status)) {
       return res.status(400).json({ error: `status must be one of: ${VALID_EPIC_STATUSES.join(', ')}` })
     }
 
     const hasUpdate = title !== undefined || description !== undefined || version !== undefined ||
-      status !== undefined || 'start_date' in req.body || 'end_date' in req.body
+      status !== undefined || 'start_date' in req.body || 'end_date' in req.body || 'source_doc' in req.body
     if (!hasUpdate) return res.json(epic)
 
     await sql`
@@ -74,7 +74,8 @@ export function epicsRouter(sql: Sql, broadcast: Broadcast): Router {
         version = COALESCE(${version ?? null}, version),
         status = COALESCE(${status ?? null}, status),
         start_date = ${'start_date' in req.body ? (start_date ?? null) : sql`start_date`},
-        end_date = ${'end_date' in req.body ? (end_date ?? null) : sql`end_date`}
+        end_date = ${'end_date' in req.body ? (end_date ?? null) : sql`end_date`},
+        source_doc = ${'source_doc' in req.body ? (source_doc ?? null) : sql`source_doc`}
       WHERE id = ${epic.id}
     `
 

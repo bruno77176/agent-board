@@ -150,6 +150,7 @@ server.tool(
     status: z.enum(['active', 'completed', 'cancelled']).optional(),
     start_date: z.string().optional().describe('ISO date string e.g. 2026-04-01'),
     end_date: z.string().optional().describe('ISO date string e.g. 2026-04-30'),
+    source_doc: z.string().nullable().optional().describe('Relative path to the plan/design doc, e.g. "BOARD/2026-04-05-my-plan.md"'),
   },
   async ({ epic_id, ...data }) => {
     const epic = await board.updateEpic(epic_id, data)
