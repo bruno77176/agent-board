@@ -251,3 +251,32 @@ export async function syncDocToBoard(
   console.log('[doc-sync]', msg)
   return { created: totalStories > 0 || !existingEpic, message: msg }
 }
+
+export async function archiveEpicFromDoc(
+  filePath: string,
+  sql: Sql,
+  broadcast: Broadcast
+): Promise<void> {
+  const epics = await sql`SELECT * FROM epics WHERE source_doc = ${filePath}`
+  if (epics.length === 0) return
+
+  for (const epic of epics) {
+    const stories = await sql`
+      SELECT s.id, s.status FROM stories s
+      JOIN features f ON s.feature_id = f.id
+      WHERE f.epic_id = ${epic.id}
+      AND s.status NOT IN ('done', 'archived')
+    `
+    for (const story of stories) {
+      await sql`UPDATE stories SET status = 'archived' WHERE id = ${story.id}`
+      await sql`
+        INSERT INTO events (id, target_type, target_id, agent_id, from_status, to_status, comment)
+        VALUES (${randomUUID()}, 'story', ${story.id}, null, ${story.status}, 'archived',
+                '⚠️ Archived by doc-sync — plan file deleted')
+      `
+      const [updated] = await sql`SELECT * FROM stories WHERE id = ${story.id}`
+      broadcast({ type: 'story.archived', data: updated })
+    }
+    console.log(`[doc-sync] Archived ${stories.length} stories from epic "${epic.title}" (file deleted)`)
+  }
+}

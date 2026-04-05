@@ -2,7 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import type { Sql } from '../db/index.js'
 import { Broadcast } from '../ws/index.js'
-import { syncDocToBoard } from './doc-parser.js'
+import { syncDocToBoard, archiveEpicFromDoc } from './doc-parser.js'
 
 export function startDocWatcher(sql: Sql, docsRoot: string, broadcast: Broadcast) {
   if (!fs.existsSync(docsRoot)) {
@@ -33,6 +33,15 @@ export function startDocWatcher(sql: Sql, docsRoot: string, broadcast: Broadcast
 
     watcher.on('add', handleFile)
     watcher.on('change', handleFile)
+
+    watcher.on('unlink', async (filePath: string) => {
+      console.log('[doc-watcher] File deleted:', filePath)
+      try {
+        await archiveEpicFromDoc(filePath, sql, broadcast)
+      } catch (err) {
+        console.error('[doc-watcher] Error archiving on delete', filePath, err)
+      }
+    })
 
     console.log('[doc-watcher] Watching', docsRoot)
   }).catch(err => {
