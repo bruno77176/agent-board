@@ -33,27 +33,18 @@ export function EpicsView({ projectId }: Props) {
         {typedEpics.length === 0 ? (
           <div className="py-12 text-center text-slate-400 text-sm">No epics yet</div>
         ) : (
-          <div className="grid gap-3">
+          <div className="divide-y divide-slate-100 bg-white rounded-lg border border-slate-200 overflow-hidden">
             {typedEpics.map(epic => (
               <button
                 key={epic.id}
-                onClick={() => navigate(`/${paramKey ?? ''}/epics/${epic.id}`)}
-                className="text-left p-4 bg-white rounded-lg border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all"
+                onClick={() => navigate(`/${paramKey ?? ''}/epics/${epic.short_id ?? epic.id}`)}
+                className="text-left w-full px-4 py-3 bg-white border-b border-slate-100 hover:bg-slate-50 transition-colors flex items-center gap-3"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-slate-800 truncate">{epic.title}</p>
-                    {epic.description && (
-                      <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{epic.description}</p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {epic.version && (
-                      <span className="text-xs text-slate-500 font-mono">{epic.version}</span>
-                    )}
-                    <StatusBadge status={epic.status} />
-                  </div>
-                </div>
+                {epic.short_id && (
+                  <span className="text-xs font-mono text-slate-400 flex-shrink-0 w-20">{epic.short_id}</span>
+                )}
+                <span className="flex-1 text-sm text-slate-800 truncate">{epic.title}</span>
+                <StatusBadge status={epic.status} />
               </button>
             ))}
           </div>
