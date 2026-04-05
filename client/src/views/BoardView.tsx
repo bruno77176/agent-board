@@ -239,7 +239,15 @@ export function BoardView({ projectId }: Props) {
                   </td>
                   <td className="py-2.5 text-xs text-slate-500 capitalize">{s.priority}</td>
                   <td className="py-2.5 text-xs text-slate-500">
-                    {agent ? `${agent.avatar_emoji} ${agent.name}` : '—'}
+                    {agent ? (
+                      <button
+                        onClick={e => { e.stopPropagation(); navigate(`/team/${agent.slug}`) }}
+                        className="hover:underline hover:text-slate-900 transition-colors text-left"
+                        title={`Go to ${agent.name}'s profile`}
+                      >
+                        {agent.avatar_emoji} {agent.name}
+                      </button>
+                    ) : '—'}
                   </td>
                 </tr>
               )

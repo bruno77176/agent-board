@@ -105,7 +105,7 @@ export function FeatureDetailView({ featureId, projectKey }: Props) {
               return (
                 <div
                   key={story.id}
-                  onClick={() => navigate(`/${projectKey}/stories/${story.id}`)}
+                  onClick={() => navigate(`/${projectKey}/stories/${story.short_id ?? story.id}`)}
                   className="flex items-center gap-3 p-3 bg-white border rounded-lg hover:border-slate-300 cursor-pointer text-sm group"
                 >
                   <div className="flex-1 min-w-0">
@@ -127,7 +127,15 @@ export function FeatureDetailView({ featureId, projectKey }: Props) {
                     story.priority === 'medium' ? 'border-amber-200 text-amber-600' :
                     'border-slate-200 text-slate-400'
                   }`}>{story.priority}</span>
-                  {agent && <span title={agent.name} className="flex-shrink-0">{agent.avatar_emoji}</span>}
+                  {agent && (
+                    <button
+                      onClick={e => { e.stopPropagation(); navigate(`/team/${agent.slug}`) }}
+                      title={agent.name}
+                      className="flex-shrink-0 hover:opacity-70 transition-opacity"
+                    >
+                      {agent.avatar_emoji}
+                    </button>
+                  )}
                 </div>
               )
             })}

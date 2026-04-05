@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '@/lib/api'
 import type { Story, Agent, Epic } from '@/lib/api'
 import { FilterBar, defaultFilters } from '@/components/FilterBar'
@@ -11,6 +11,7 @@ import { StoryPanel } from '@/components/StoryPanel'
 interface Props { projectId: string }
 
 export function BacklogView({ projectId }: Props) {
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [filters, setFilters] = useState<Filters>(defaultFilters)
 
@@ -107,7 +108,15 @@ export function BacklogView({ projectId }: Props) {
                     s.priority === 'medium' ? 'border-amber-200 text-amber-600' :
                     'border-slate-200 text-slate-400'
                   }`}>{s.priority}</span>
-                  {agent && <span title={agent.name} className="flex-shrink-0">{agent.avatar_emoji}</span>}
+                  {agent && (
+                    <button
+                      onClick={e => { e.stopPropagation(); navigate(`/team/${agent.slug}`) }}
+                      title={agent.name}
+                      className="flex-shrink-0 hover:opacity-70 transition-opacity"
+                    >
+                      {agent.avatar_emoji}
+                    </button>
+                  )}
                 </div>
               )
             })}
