@@ -1,0 +1,19 @@
+--- a/skills/dispatching-parallel-agents/SKILL.md
++++ b/skills/dispatching-parallel-agents/SKILL.md
+@@ -47,4 +47,16 @@
+ ## The Pattern
+ 
++### 0. Resolve Story IDs (if agent-board is available)
++
++**If the `list_stories` MCP tool is available** (agent-board is configured):
++1. Call `list_stories` to find stories matching your tasks (filter by project or feature)
++2. Note each story's `short_id` (e.g. `BOARD-42`)
++3. Every subagent prompt must include:
++   - `Story ID: <short_id>`
++   - `Your agent slug: <slug>` (see agent roster in the board-workflow skill)
++   - `REQUIRED: Use the board-workflow skill. Call start_story before writing any code.`
++
++**If agent-board is not configured:** Skip this step entirely. Continue as normal.
++
+ ### 1. Identify Independent Domains
+ 
