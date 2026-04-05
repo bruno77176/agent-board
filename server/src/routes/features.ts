@@ -11,7 +11,9 @@ export function featuresRouter(sql: Sql, broadcast: Broadcast): Router {
     const { epic_id, project_id } = req.query
     let rows: any[]
     if (epic_id) {
-      rows = await sql`SELECT * FROM features WHERE epic_id = ${epic_id as string} ORDER BY created_at`
+      const [epic] = await sql`SELECT id FROM epics WHERE id = ${epic_id as string} OR short_id = ${epic_id as string}`
+      if (!epic) return res.json([])
+      rows = await sql`SELECT * FROM features WHERE epic_id = ${epic.id} ORDER BY created_at`
     } else if (project_id) {
       rows = await sql`SELECT f.* FROM features f JOIN epics e ON f.epic_id = e.id WHERE e.project_id = ${project_id as string} ORDER BY f.created_at`
     } else {
