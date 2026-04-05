@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { useNavigate, useParams } from 'react-router-dom'
 
 async function fetchDocList(project?: string): Promise<string[]> {
   const url = project ? `/api/docs?project=${encodeURIComponent(project)}` : '/api/docs'
@@ -21,8 +22,19 @@ interface DocsViewProps {
 }
 
 export function DocsView({ projectKey }: DocsViewProps) {
-  const [selected, setSelected] = useState<string | null>(null)
+  const { docSlug } = useParams<{ docSlug?: string }>()
+  const navigate = useNavigate()
   const [syncStatus, setSyncStatus] = useState<string | null>(null)
+
+  const { data: files = [] } = useQuery({
+    queryKey: ['docs', projectKey],
+    queryFn: () => fetchDocList(projectKey),
+  })
+
+  const selected = (files as string[]).find(f => {
+    const name = f.split('/').pop()?.replace(/\.md$/, '')
+    return name === docSlug
+  }) ?? null
 
   const handleSync = async () => {
     if (!selected) return
@@ -41,11 +53,6 @@ export function DocsView({ projectKey }: DocsViewProps) {
       setTimeout(() => setSyncStatus(null), 3000)
     }
   }
-
-  const { data: files = [] } = useQuery({
-    queryKey: ['docs', projectKey],
-    queryFn: () => fetchDocList(projectKey),
-  })
 
   const { data: content, isLoading } = useQuery({
     queryKey: ['doc', selected],
@@ -77,7 +84,10 @@ export function DocsView({ projectKey }: DocsViewProps) {
             {dirFiles.map(f => {
               const name = f.split('/').pop()!.replace(/\.md$/, '')
               return (
-                <button key={f} onClick={() => setSelected(f)}
+                <button key={f} onClick={() => {
+                  const slug = f.split('/').pop()!.replace(/\.md$/, '')
+                  navigate(`/${projectKey}/docs/${slug}`)
+                }}
                   className={`w-full text-left px-4 py-1.5 text-xs transition-colors ${
                     selected === f
                       ? 'bg-slate-100 text-slate-900 font-medium'

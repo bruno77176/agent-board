@@ -94,6 +94,7 @@ function AppLayout({ onCreateClick }: { onCreateClick: () => void }) {
             <Route path="/team/:agentSlug" element={<AgentProfileView />} />
             <Route path="/docs" element={<DocsView />} />
             <Route path="/:projectKey/docs" element={<ProjectDocsRoute />} />
+            <Route path="/:projectKey/docs/:docSlug" element={<ProjectDocsRoute />} />
             <Route path="/admin/users" element={<AdminUsersPage />} />
             <Route path="/" element={<Navigate to="/team" replace />} />
             <Route path="*" element={<WelcomeScreen />} />
