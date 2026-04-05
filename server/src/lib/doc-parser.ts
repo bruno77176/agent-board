@@ -174,10 +174,14 @@ export async function syncDocToBoard(
 
   if (existingEpic) {
     epicId = existingEpic.id
+    // Backfill source_doc if this epic was created before tracking was added
+    if (!existingEpic.source_doc) {
+      await sql`UPDATE epics SET source_doc = ${filePath} WHERE id = ${epicId}`
+    }
   } else {
     epicId = randomUUID()
     const epicShortId = await nextShortId(sql, project.id, 'epic')
-    await sql`INSERT INTO epics (id, project_id, title, description, short_id) VALUES (${epicId}, ${project.id}, ${structure.epic.title}, ${structure.epic.description || null}, ${epicShortId})`
+    await sql`INSERT INTO epics (id, project_id, title, description, short_id, source_doc) VALUES (${epicId}, ${project.id}, ${structure.epic.title}, ${structure.epic.description || null}, ${epicShortId}, ${filePath})`
     const [epic] = await sql`SELECT * FROM epics WHERE id = ${epicId}`
     broadcast({ type: 'epic.created', data: epic })
   }
