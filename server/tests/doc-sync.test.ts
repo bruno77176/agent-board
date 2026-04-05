@@ -5,11 +5,12 @@ import { syncDocToBoard } from '../src/lib/doc-parser.js'
 import * as os from 'os'
 import * as path from 'path'
 import * as fs from 'fs'
+import { randomUUID } from 'crypto'
 
 const noop = () => {}
 
 function writeTempPlan(content: string): string {
-  const file = path.join(os.tmpdir(), `test-plan-${Date.now()}.md`)
+  const file = path.join(os.tmpdir(), `test-plan-${randomUUID()}.md`)
   fs.writeFileSync(file, content, 'utf-8')
   return file
 }

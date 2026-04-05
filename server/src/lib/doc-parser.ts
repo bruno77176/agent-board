@@ -174,7 +174,8 @@ export async function syncDocToBoard(
 
   if (existingEpic) {
     epicId = existingEpic.id
-    // Backfill source_doc if this epic was created before tracking was added
+    // Backfill source_doc for epics created before this column existed.
+    // Intentionally does not overwrite an existing source_doc — first writer wins.
     if (!existingEpic.source_doc) {
       await sql`UPDATE epics SET source_doc = ${filePath} WHERE id = ${epicId}`
     }
