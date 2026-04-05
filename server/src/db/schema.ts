@@ -36,7 +36,8 @@ export const SCHEMA = `
     short_id TEXT,
     start_date TEXT,
     end_date TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    source_doc TEXT
   );
 
   CREATE TABLE IF NOT EXISTS features (
@@ -117,6 +118,8 @@ export const SCHEMA = `
 
   CREATE INDEX IF NOT EXISTS idx_story_links_from ON story_links(from_story_id);
   CREATE INDEX IF NOT EXISTS idx_story_links_to ON story_links(to_story_id);
+
+  ALTER TABLE epics ADD COLUMN IF NOT EXISTS source_doc TEXT;
 `
 
 // No separate MIGRATIONS array needed — schema is idempotent with IF NOT EXISTS.

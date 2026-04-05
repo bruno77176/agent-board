@@ -60,4 +60,14 @@ describe('database schema', () => {
     const names = cols.map((c: any) => c.column_name)
     expect(names).toContain('is_public')
   })
+
+  it('epics table has source_doc column', async () => {
+    if (skipIfNoDb()) return
+    const cols = await sql`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'epics'
+    `
+    const names = cols.map((c: any) => c.column_name)
+    expect(names).toContain('source_doc')
+  })
 })
