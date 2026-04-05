@@ -1,4 +1,5 @@
 import { useDraggable } from '@dnd-kit/core'
+import { useNavigate } from 'react-router-dom'
 import type { Story, Agent } from '@/lib/api'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export function StoryCard({ story, agent, onClick, hasBlockers }: Props) {
+  const navigate = useNavigate()
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: story.id,
     data: { story },
@@ -65,11 +67,17 @@ export function StoryCard({ story, agent, onClick, hasBlockers }: Props) {
             </span>
           )}
           {agent && (
-            <Avatar className="h-5 w-5" style={{ border: `1.5px solid ${agent.color}` }}>
-              <AvatarFallback style={{ backgroundColor: agent.color + '20', color: agent.color, fontSize: 10 }}>
-                {agent.avatar_emoji}
-              </AvatarFallback>
-            </Avatar>
+            <button
+              onClick={e => { e.stopPropagation(); navigate(`/team/${agent.slug}`) }}
+              className="flex-shrink-0 hover:opacity-70 transition-opacity"
+              title={agent.name}
+            >
+              <Avatar className="h-5 w-5" style={{ border: `1.5px solid ${agent.color}` }}>
+                <AvatarFallback style={{ backgroundColor: agent.color + '20', color: agent.color, fontSize: 10 }}>
+                  {agent.avatar_emoji}
+                </AvatarFallback>
+              </Avatar>
+            </button>
           )}
         </div>
       </div>
