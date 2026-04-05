@@ -199,3 +199,27 @@ If a task feels larger than 10 minutes, break it into multiple stories before ca
 2. Verify with `list_agents` — should return 8 agents (Arch Lee, Tess Ter, etc.).
 
 3. Create your project: ask Arch Lee to run `create_epic` after the first brainstorming session.
+
+---
+
+## For Dispatching Agents (Pro Ject, Arch Lee, etc.)
+
+### Step 0 — Resolve story IDs before writing any prompt
+
+Before writing any subagent prompt, call `list_stories` filtered to the relevant project or feature.
+Note each `short_id` for the tasks you are about to dispatch.
+
+**If you cannot find a story for a task:** Create it first with `create_story`, then use its `short_id`.
+**Never dispatch a subagent prompt without a `story_id`** — the implementing agent cannot update the board without it.
+
+### Step 1 — Every subagent prompt MUST include:
+
+```
+Story ID: <story_id>
+Your agent slug: <slug>
+
+REQUIRED: Use the board-workflow skill. Call start_story before writing any code.
+Call complete_story after the build passes.
+```
+
+Without the story_id in the prompt, the implementing agent cannot update the board. This is your responsibility as dispatcher.
