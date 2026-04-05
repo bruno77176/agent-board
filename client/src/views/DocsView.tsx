@@ -86,7 +86,7 @@ export function DocsView({ projectKey }: DocsViewProps) {
               return (
                 <button key={f} onClick={() => {
                   const slug = f.split('/').pop()!.replace(/\.md$/, '')
-                  navigate(`/${projectKey}/docs/${slug}`)
+                  navigate(projectKey ? `/${projectKey}/docs/${slug}` : `/docs/${slug}`)
                 }}
                   className={`w-full text-left px-4 py-1.5 text-xs transition-colors ${
                     selected === f
