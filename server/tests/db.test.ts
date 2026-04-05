@@ -65,7 +65,7 @@ describe('database schema', () => {
     if (skipIfNoDb()) return
     const cols = await sql`
       SELECT column_name FROM information_schema.columns
-      WHERE table_name = 'epics'
+      WHERE table_name = 'epics' AND table_schema = 'public'
     `
     const names = cols.map((c: any) => c.column_name)
     expect(names).toContain('source_doc')
