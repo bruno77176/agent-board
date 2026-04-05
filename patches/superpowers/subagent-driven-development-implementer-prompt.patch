@@ -1,0 +1,18 @@
+--- a/skills/subagent-driven-development/implementer-prompt.md
++++ b/skills/subagent-driven-development/implementer-prompt.md
+@@ -26,5 +26,15 @@
+ 
+     **Ask them now.** Raise any concerns before starting work.
+ 
++    ## Board Tracking
++
++    If a `Story ID` was included in your task prompt:
++    1. Call `start_story(story_id, your_agent_slug)` **before writing any code** — this is mandatory
++    2. Add a comment via `add_comment` at each major milestone or non-obvious design decision
++    3. Call `complete_story(story_id, your_agent_slug, checklist_confirmed: true)` only after:
++       - Tests pass
++       - Every acceptance criterion in the story is confirmed met
++    If no Story ID was provided, skip this section entirely.
++
+     ## Your Job
+ 
