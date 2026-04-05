@@ -11,6 +11,20 @@ A Jira-like project management system for Claude Code agents. Agents have named 
 
 ## Quick Start
 
+## Prerequisites
+
+This project requires [Superpowers](https://github.com/anthropics/claude-code) installed in Claude Code.
+
+After installing superpowers and configuring the MCP server, wire agent-board into the skill flow by running:
+
+```bash
+./scripts/apply-superpowers-patches.sh
+```
+
+This applies three small, conditional patches to superpowers skills that enforce board discipline when the agent-board MCP is configured. The patches are no-ops when agent-board MCP is not present — superpowers continues to work normally for all other projects.
+
+**After any superpowers `/update`**, re-run the script.
+
 ### 1. Deploy the web app
 
 Push to GitHub — Railway auto-deploys on push to `master`.
