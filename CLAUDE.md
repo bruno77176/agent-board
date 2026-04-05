@@ -22,7 +22,7 @@ npm run dev:server --workspace=server   # Start backend with hot-reload (tsx wat
 npm run dev:client --workspace=client   # Start Vite dev server (proxies /api to :3000)
 
 # Build
-npm run build:local                     # Build client + server + mcp (use before pushing)
+npm run build:local                     # Build client + server + mcp (local dev only — Railway uses Dockerfile)
 npm run build                           # Build server + mcp only (used by Railway — no Vite)
 npm run build --workspace=server        # Build server only
 npm run build --workspace=mcp           # Build MCP server only (required after MCP changes)
@@ -42,8 +42,6 @@ npm run start --workspace=server        # Serves API + static client from dist/
 ```
 
 **After any MCP changes**, always rebuild the MCP package — Claude Code loads the compiled `dist/index.js`.
-
-**After any client changes**, run `npm run build:local`, commit `client/dist/`, then push. Railway's build environment is pinned to Node 18 (incompatible with Vite 8) so the pre-built dist must be committed.
 
 ## Architecture
 
