@@ -219,6 +219,34 @@ export async function syncDocToBoard(
     }
   }
 
+  // Archive stories that are no longer in the plan
+  const planStoryTitles = new Set(
+    structure.features.flatMap((f) => f.stories.map((s) => s.title))
+  )
+
+  const existingStories = await sql`
+    SELECT s.id, s.title, s.status FROM stories s
+    JOIN features f ON s.feature_id = f.id
+    WHERE f.epic_id = ${epicId}
+    AND s.status NOT IN ('done', 'archived')
+  `
+
+  for (const story of existingStories) {
+    if (!planStoryTitles.has(story.title)) {
+      const wasActive = ['in_progress', 'review', 'qa'].includes(story.status)
+      await sql`UPDATE stories SET status = 'archived' WHERE id = ${story.id}`
+      if (wasActive) {
+        await sql`
+          INSERT INTO events (id, target_type, target_id, agent_id, from_status, to_status, comment)
+          VALUES (${randomUUID()}, 'story', ${story.id}, null, ${story.status}, 'archived',
+                  '⚠️ Archived by doc-sync — task removed from plan while in progress')
+        `
+      }
+      const [updated] = await sql`SELECT * FROM stories WHERE id = ${story.id}`
+      broadcast({ type: 'story.archived', data: updated })
+    }
+  }
+
   const msg = `Synced: Epic "${structure.epic.title}", ${structure.features.length} features, ${totalStories} new stories`
   console.log('[doc-sync]', msg)
   return { created: totalStories > 0 || !existingEpic, message: msg }

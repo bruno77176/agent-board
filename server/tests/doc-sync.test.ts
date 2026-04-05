@@ -75,4 +75,82 @@ describe('doc sync — source_doc tracking', () => {
       fs.unlinkSync(file)
     }
   })
+
+  it('archives story removed from plan on re-sync', async () => {
+    if (skipIfNoDb()) return
+    const file = writeTempPlan(PLAN_3_TASKS)
+    try {
+      await syncDocToBoard(file, sql, noop)
+
+      // Re-sync with Task 3 removed
+      const updatedPlan = PLAN_3_TASKS.replace('\n### Task 3: Third task\n- [ ] Criterion C\n', '')
+      fs.writeFileSync(file, updatedPlan, 'utf-8')
+      await syncDocToBoard(file, sql, noop)
+
+      const stories = await sql`
+        SELECT s.title, s.status FROM stories s
+        JOIN features f ON s.feature_id = f.id
+        JOIN epics e ON f.epic_id = e.id
+        WHERE e.title = 'Test Feature'
+        ORDER BY s.title
+      `
+      const byTitle = Object.fromEntries(stories.map((s: any) => [s.title, s.status]))
+      expect(byTitle['Task 1: First task']).toBe('backlog')
+      expect(byTitle['Task 2: Second task']).toBe('backlog')
+      expect(byTitle['Task 3: Third task']).toBe('archived')
+    } finally {
+      fs.unlinkSync(file)
+    }
+  })
+
+  it('does not archive done stories on re-sync', async () => {
+    if (skipIfNoDb()) return
+    const file = writeTempPlan(PLAN_3_TASKS)
+    try {
+      await syncDocToBoard(file, sql, noop)
+
+      // Mark Task 3 as done
+      await sql`UPDATE stories SET status = 'done' WHERE title = 'Task 3: Third task'`
+
+      // Re-sync with Task 3 removed
+      const updatedPlan = PLAN_3_TASKS.replace('\n### Task 3: Third task\n- [ ] Criterion C\n', '')
+      fs.writeFileSync(file, updatedPlan, 'utf-8')
+      await syncDocToBoard(file, sql, noop)
+
+      const [story] = await sql`SELECT status FROM stories WHERE title = 'Task 3: Third task'`
+      expect(story.status).toBe('done')
+    } finally {
+      fs.unlinkSync(file)
+    }
+  })
+
+  it('archives in_progress story with warning comment on re-sync', async () => {
+    if (skipIfNoDb()) return
+    const file = writeTempPlan(PLAN_3_TASKS)
+    try {
+      await syncDocToBoard(file, sql, noop)
+
+      // Mark Task 3 as in_progress
+      await sql`UPDATE stories SET status = 'in_progress' WHERE title = 'Task 3: Third task'`
+
+      // Re-sync with Task 3 removed
+      const updatedPlan = PLAN_3_TASKS.replace('\n### Task 3: Third task\n- [ ] Criterion C\n', '')
+      fs.writeFileSync(file, updatedPlan, 'utf-8')
+      await syncDocToBoard(file, sql, noop)
+
+      const [story] = await sql`SELECT id, status FROM stories WHERE title = 'Task 3: Third task'`
+      expect(story.status).toBe('archived')
+
+      const events = await sql`
+        SELECT comment FROM events
+        WHERE target_type = 'story' AND target_id = ${story.id}
+        ORDER BY created_at DESC
+        LIMIT 1
+      `
+      expect(events.length).toBeGreaterThan(0)
+      expect(events[0].comment).toContain('Archived by doc-sync')
+    } finally {
+      fs.unlinkSync(file)
+    }
+  })
 })
