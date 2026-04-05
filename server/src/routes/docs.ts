@@ -1,10 +1,8 @@
 import { Router } from 'express'
 import fs from 'fs'
 import path from 'path'
-import type { Sql } from '../db/index.js'
-import { Broadcast } from '../ws/index.js'
 
-export function docsRouter(sql?: Sql, broadcast?: Broadcast): Router {
+export function docsRouter(): Router {
   const router = Router()
 
   // GET /api/docs — list all .md files (optionally filtered by ?project=KEY)
@@ -27,45 +25,6 @@ export function docsRouter(sql?: Sql, broadcast?: Broadcast): Router {
     }
     const files = walk(searchRoot).map(f => path.relative(DOCS_ROOT, f).replace(/\\/g, '/'))
     res.json(files)
-  })
-
-  // POST /api/docs/sync — sync a doc to the board.
-  // Accepts either { file: "relative/path.md" } (server filesystem) or { content: "markdown..." } (raw content)
-  router.post('/sync', async (req, res) => {
-    if (!sql || !broadcast) {
-      return res.status(503).json({ error: 'Sync not available — db/broadcast not configured' })
-    }
-    const { file, content } = req.body
-
-    // Raw content path: write to a temp file and sync
-    if (content && typeof content === 'string') {
-      const os = await import('os')
-      const tmpFile = `${os.default.tmpdir()}/board-doc-sync-${Date.now()}.md`
-      try {
-        fs.writeFileSync(tmpFile, content, 'utf-8')
-        const { syncDocToBoard } = await import('./docs-sync.js')
-        const result = await syncDocToBoard(tmpFile, sql, broadcast)
-        return res.json(result)
-      } finally {
-        try { fs.unlinkSync(tmpFile) } catch {}
-      }
-    }
-
-    // File path: resolve against DOCS_ROOT
-    if (!file || typeof file !== 'string') {
-      return res.status(400).json({ error: 'file path or content required' })
-    }
-    const DOCS_ROOT = process.env.DOCS_PATH ?? path.resolve(process.cwd(), '..', 'docs')
-    const ROOT_WITH_SEP = DOCS_ROOT.endsWith(path.sep) ? DOCS_ROOT : DOCS_ROOT + path.sep
-    const resolved = path.resolve(DOCS_ROOT, file)
-    if ((!resolved.startsWith(ROOT_WITH_SEP) && resolved !== DOCS_ROOT) || !resolved.endsWith('.md')) {
-      return res.status(403).json({ error: 'Forbidden' })
-    }
-    if (!fs.existsSync(resolved)) return res.status(404).json({ error: 'File not found' })
-
-    const { syncDocToBoard } = await import('./docs-sync.js')
-    const result = await syncDocToBoard(resolved, sql, broadcast)
-    res.json(result)
   })
 
   // GET /api/docs/* — return file content

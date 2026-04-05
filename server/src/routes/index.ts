@@ -21,7 +21,7 @@ export function createRouter(sql: Sql, broadcast: import('../ws/index.js').Broad
   router.use('/features', featuresRouter(sql, broadcast))
   router.use('/stories', storiesRouter(sql, broadcast))
   router.use('/events', eventsRouter(sql, broadcast))
-  router.use('/docs', docsRouter(sql, broadcast))
+  router.use('/docs', docsRouter())
   router.use('/admin', adminRouter(sql))
   return router
 }
