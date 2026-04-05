@@ -203,7 +203,7 @@ export function StoryDetailView({ storyId: propStoryId, projectKey: propKey }: P
           <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-2">
             {epic && (
               <button
-                onClick={() => navigate(`/${projectKey}/epics/${epic.id}`)}
+                onClick={() => navigate(`/${projectKey}/epics/${epic.short_id ?? epic.id}`)}
                 className="font-medium text-slate-500 hover:text-blue-600"
               >
                 {epic.title}

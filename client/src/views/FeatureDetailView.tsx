@@ -52,7 +52,7 @@ export function FeatureDetailView({ featureId, projectKey }: Props) {
     <div className="h-full flex flex-col">
       <div className="px-6 py-4 border-b border-slate-200 bg-white flex-shrink-0">
         <button
-          onClick={() => typedEpic ? navigate(`/${projectKey}/epics/${typedEpic.id}`) : navigate(-1)}
+          onClick={() => typedEpic ? navigate(`/${projectKey}/epics/${typedEpic.short_id ?? typedEpic.id}`) : navigate(-1)}
           className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 mb-3"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
@@ -61,7 +61,7 @@ export function FeatureDetailView({ featureId, projectKey }: Props) {
         <div className="flex items-center gap-2 text-xs text-slate-400 mb-2">
           {typedEpic && (
             <button
-              onClick={() => navigate(`/${projectKey}/epics/${typedEpic.id}`)}
+              onClick={() => navigate(`/${projectKey}/epics/${typedEpic.short_id ?? typedEpic.id}`)}
               className="font-medium text-slate-500 hover:text-blue-600"
             >
               {typedEpic.title}
