@@ -92,6 +92,13 @@ type: implementation-plan
 
 Items are created idempotently — re-saving a plan adds new tasks without duplicating existing ones.
 
+**Archiving orphaned stories:**
+When a plan file is re-saved with tasks removed, the corresponding stories are automatically moved to `archived` status. Stories at `done` are never archived. Stories at `in_progress`, `review`, or `qa` are archived with a warning comment in the event log.
+
+When a plan file is deleted, all non-done stories from its epic are archived.
+
+> **Note:** Epics created from plan files are "owned" by that file. Manually-created stories added to a plan-sourced epic are subject to archiving if their title doesn't match any task in the plan on re-sync.
+
 ## Deployment
 
 The app is deployed on [Railway](https://railway.app) using **Nixpacks** — no Dockerfile needed. Railway detects Node.js, runs the build, then starts the server. One process serves both the API and the React frontend.
