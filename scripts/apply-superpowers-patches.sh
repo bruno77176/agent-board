@@ -49,5 +49,10 @@ apply_patch \
   "$PATCHES_DIR/subagent-driven-development-implementer-prompt.patch" \
   "subagent-driven-development implementer-prompt: add board tracking section"
 
+apply_patch \
+  "$SKILLS/writing-plans/SKILL.md" \
+  "$PATCHES_DIR/writing-plans-board-setup.patch" \
+  "writing-plans: add mandatory board setup step after saving plan"
+
 echo ""
 echo "✅ Done. Re-run this script after any superpowers /update."

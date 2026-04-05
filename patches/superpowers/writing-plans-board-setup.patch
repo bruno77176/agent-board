@@ -1,0 +1,55 @@
+--- /tmp/writing-plans-lf-original-clean.md	2026-04-05 19:36:35.675979600 +0200
++++ /tmp/writing-plans-lf-modified.md	2026-04-05 19:36:35.675979600 +0200
+@@ -131,6 +131,52 @@
+ 
+ If you find issues, fix them inline. No need to re-review — just fix and move on. If you find a spec requirement with no task, add the task.
+ 
++## Board Setup (if agent-board MCP is available)
++
++After saving the plan file, immediately create the board hierarchy using the templates in `docs/templates/`. Do this BEFORE offering the execution choice. **Mandatory when `mcp__agent-board__create_epic` is available.**
++
++### Step 1: Upload the plan to the server
++
++```
++upload_doc(
++  file_path: "<absolute local path to the saved plan file>",
++  relative_path: "plans/<filename>.md"
++)
++```
++
++Save the `relative_path` -- use it as `source_doc` in Step 2.
++
++### Step 2: Create the epic
++
++Read `docs/templates/epic-template.md`. Fill every section using content from the plan:
++- **Title**: H1 heading, strip " Implementation Plan" suffix
++- **Context**: the problem being solved (from Goal + Architecture)
++- **Objective**: the Goal sentence verbatim
++- **Value**: why this matters to the project
++- **Success Criteria**: derive from the plan's task outcomes or stated goals
++
++Call `create_epic(project_id, title, description, source_doc=relative_path)`.
++
++### Step 3: Create feature(s)
++
++Read `docs/templates/feature-template.md`. One feature per H2 heading; if no H2 exists, create one feature named after the plan's domain (e.g. "Tasks").
++
++Fill the description from what the feature enables based on the plan context.
++
++Call `create_feature(epic_id, title, description)` for each.
++
++### Step 4: Create stories
++
++Read `docs/templates/story-template.md`. One story per H3 task heading.
++
++- **Title**: H3 heading text
++- **Description**: fill User Story + Acceptance Criteria from the task steps and `- [ ]` lines
++- **estimated_minutes**: step count x 5
++
++Call `create_story(feature_id, title, description, estimated_minutes)` for each task.
++
++**Do not leave template placeholders unfilled. Every field must contain real content derived from the plan.**
++
+ ## Execution Handoff
+ 
+ After saving the plan, offer execution choice:
