@@ -4,6 +4,7 @@ import { api } from '@/lib/api'
 import type { Epic, Feature, Story } from '@/lib/api'
 import { ArrowLeft } from 'lucide-react'
 import { MarkdownContent, stripMarkdown } from '@/components/MarkdownContent'
+import { planDisplayName } from '@/lib/utils'
 
 interface Props { epicId: string; projectKey: string }
 
@@ -79,6 +80,17 @@ export function EpicDetailView({ epicId }: Props) {
                   onChange={e => updateEpic.mutate({ end_date: e.target.value || null })}
                   className="ml-2 text-xs border border-slate-200 rounded px-2 py-0.5" />
               </label>
+              {typedEpic.source_doc && (
+                <a
+                  href={`/docs/${typedEpic.source_doc}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline"
+                >
+                  <span>📄</span>
+                  <span>{planDisplayName(typedEpic.source_doc)}</span>
+                </a>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
