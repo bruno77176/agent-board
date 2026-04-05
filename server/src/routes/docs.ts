@@ -27,6 +27,27 @@ export function docsRouter(): Router {
     res.json(files)
   })
 
+  // POST /api/docs/upload — store a doc permanently so it appears in the UI
+  router.post('/upload', (req, res) => {
+    const { path: docPath, content } = req.body
+    if (!docPath || typeof docPath !== 'string' || !content || typeof content !== 'string') {
+      return res.status(400).json({ error: 'path and content required' })
+    }
+    if (!docPath.endsWith('.md')) {
+      return res.status(400).json({ error: 'Only .md files allowed' })
+    }
+    const DOCS_ROOT = process.env.DOCS_PATH ?? path.resolve(process.cwd(), '..', 'docs')
+    const ROOT_WITH_SEP = DOCS_ROOT.endsWith(path.sep) ? DOCS_ROOT : DOCS_ROOT + path.sep
+    const resolved = path.resolve(DOCS_ROOT, docPath)
+    if (!resolved.startsWith(ROOT_WITH_SEP) && resolved !== DOCS_ROOT) {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
+    const dir = path.dirname(resolved)
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+    fs.writeFileSync(resolved, content, 'utf-8')
+    res.json({ ok: true, path: docPath })
+  })
+
   // GET /api/docs/* — return file content
   router.get('/*', (req, res) => {
     const DOCS_ROOT = process.env.DOCS_PATH ?? path.resolve(process.cwd(), '..', 'docs')
