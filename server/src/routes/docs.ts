@@ -43,7 +43,7 @@ export function docsRouter(sql?: Sql, broadcast?: Broadcast): Router {
       const tmpFile = `${os.default.tmpdir()}/board-doc-sync-${Date.now()}.md`
       try {
         fs.writeFileSync(tmpFile, content, 'utf-8')
-        const { syncDocToBoard } = await import('../lib/doc-parser.js')
+        const { syncDocToBoard } = await import('./docs-sync.js')
         const result = await syncDocToBoard(tmpFile, sql, broadcast)
         return res.json(result)
       } finally {
@@ -63,7 +63,7 @@ export function docsRouter(sql?: Sql, broadcast?: Broadcast): Router {
     }
     if (!fs.existsSync(resolved)) return res.status(404).json({ error: 'File not found' })
 
-    const { syncDocToBoard } = await import('../lib/doc-parser.js')
+    const { syncDocToBoard } = await import('./docs-sync.js')
     const result = await syncDocToBoard(resolved, sql, broadcast)
     res.json(result)
   })
