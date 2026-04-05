@@ -111,7 +111,7 @@ export function BacklogView({ projectId }: Props) {
                   {agent && (
                     <button
                       onClick={e => { e.stopPropagation(); navigate(`/team/${agent.slug}`) }}
-                      title={agent.name}
+                      title={`Go to ${agent.name}'s profile`}
                       className="flex-shrink-0 hover:opacity-70 transition-opacity"
                     >
                       {agent.avatar_emoji}
