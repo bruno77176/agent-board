@@ -57,4 +57,6 @@ export const board = {
     return call(`/stories?${qs}`)
   },
   syncDoc: (content: string) => call('/docs/sync', 'POST', { content }),
+  uploadDoc: (docPath: string, content: string) =>
+    call('/docs/upload', 'POST', { path: docPath, content }),
 }

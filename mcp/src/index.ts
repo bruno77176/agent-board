@@ -2,6 +2,8 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import { board } from './tools/board.js'
+import { readFileSync } from 'fs'
+import { resolve } from 'path'
 
 const server = new McpServer({ name: 'agent-board', version: '1.0.0' })
 
@@ -129,6 +131,7 @@ server.tool(
     title: z.string(),
     description: z.string().optional(),
     version: z.string().optional().describe('e.g. v0.0.1'),
+    source_doc: z.string().optional().describe('Relative path to the plan file, e.g. "plans/2026-04-05-my-plan.md". Set this when creating an epic from a plan.'),
   },
   async (args) => {
     const epic = await board.createEpic(args)
@@ -470,6 +473,20 @@ server.tool(
   async ({ content }) => {
     const result = await board.syncDoc(content)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] }
+  }
+)
+
+server.tool(
+  'upload_doc',
+  'Upload a local plan/doc file to the server so it appears in the board UI. Call this after writing a plan file, then use the returned relative_path as source_doc when creating the epic.',
+  {
+    file_path: z.string().describe('Absolute local path to the .md file to upload'),
+    relative_path: z.string().describe('Relative path within docs root, e.g. "plans/2026-04-05-my-plan.md"'),
+  },
+  async ({ file_path, relative_path }) => {
+    const content = readFileSync(resolve(file_path), 'utf-8')
+    await board.uploadDoc(relative_path, content)
+    return { content: [{ type: 'text' as const, text: `Uploaded: ${relative_path}` }] }
   }
 )
 
