@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { X } from 'lucide-react'
 import { api } from '@/lib/api'
@@ -6,101 +6,45 @@ import type { Project, Epic, Feature } from '@/lib/api'
 
 type CreateType = 'epic' | 'feature' | 'story'
 
-const TEMPLATES: Record<CreateType, string> = {
-  epic: `## Context
-[Describe the current situation / problem being solved]
-
-## Objective
-[What are we trying to achieve?]
-
-## Value
-[Why does it matter? Business impact]
-
----
-
-## Scope
-
-**In scope:**
--
-
-**Out of scope:**
--
-
----
-
-## Success Criteria
-- [Metric 1]
-- [Metric 2]
-- [Metric 3]
-
----
-
-## Stakeholders
-- Product:
-- Tech:
-- Business:  `,
-
-  feature: `## Description
-This feature enables: [what it unlocks functionally]
-
----
-
-## User Value
-[Who benefits and how?]
-
----
-
-## High-Level Acceptance Criteria
-- [End-to-end functionality works]
-- [Handles key edge cases]
-- [Integrated with relevant systems]
-
----
-
-## Dependencies
-- [System / team / API]
-
----
-
-## Risks / Assumptions
-- `,
-
-  story: `## User Story
-As a [user/system]
-I want [capability]
-So that [value]
-
----
-
-## Acceptance Criteria
-
-### Scenario 1
-- Given [context]
-- When [action]
-- Then [expected result]
-
----
-
-## Definition of Done
-- [ ] Code implemented
-- [ ] Tests added (unit / e2e)
-- [ ] Code reviewed
-- [ ] Deployed / usable`,
-}
-
 interface Props { onClose: () => void }
 
 export function CreateModal({ onClose }: Props) {
   const queryClient = useQueryClient()
   const [type, setType] = useState<CreateType>('story')
   const [title, setTitle] = useState('')
-  const [description, setDescription] = useState(TEMPLATES.story)
+  const [description, setDescription] = useState('')
   const [projectId, setProjectId] = useState('')
   const [epicId, setEpicId] = useState('')
   const [featureId, setFeatureId] = useState('')
   const [priority, setPriority] = useState<'high' | 'medium' | 'low'>('medium')
   const [estimatedMinutes, setEstimatedMinutes] = useState('')
   const [error, setError] = useState('')
+  const [isFormatting, setIsFormatting] = useState(false)
+  const [formatError, setFormatError] = useState('')
+  const [aiAvailable, setAiAvailable] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    api.ai.reformat({ type: 'story', title: '', description: '' })
+      .then(() => setAiAvailable(true))
+      .catch((e: Error) => {
+        if (e.message.includes('501')) setAiAvailable(false)
+        else setAiAvailable(true)
+      })
+  }, [])
+
+  async function handleFormat() {
+    setIsFormatting(true)
+    setFormatError('')
+    try {
+      const result = await api.ai.reformat({ type, title, description })
+      setTitle(result.title)
+      setDescription(result.description)
+    } catch {
+      setFormatError('Format failed — try again')
+    } finally {
+      setIsFormatting(false)
+    }
+  }
 
   const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: api.projects.list })
   const typedProjects = projects as Project[]
@@ -189,7 +133,7 @@ export function CreateModal({ onClose }: Props) {
               <button
                 key={t}
                 type="button"
-                onClick={() => { setType(t); setDescription(TEMPLATES[t]); setError('') }}
+                onClick={() => { setType(t); setDescription(''); setError('') }}
                 className={`flex-1 text-xs font-medium py-1.5 rounded-md transition-colors capitalize ${
                   type === t ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
                 }`}
@@ -257,7 +201,6 @@ export function CreateModal({ onClose }: Props) {
               type="text"
               value={title}
               onChange={e => setTitle(e.target.value)}
-              placeholder={`${type.charAt(0).toUpperCase() + type.slice(1)} title…`}
               className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               autoFocus
             />
@@ -265,13 +208,30 @@ export function CreateModal({ onClose }: Props) {
 
           {/* Description */}
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Description</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-medium text-slate-600">Description</label>
+              {aiAvailable && (
+                <button
+                  type="button"
+                  onClick={handleFormat}
+                  disabled={isFormatting}
+                  className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-700 transition-colors disabled:opacity-40"
+                >
+                  {isFormatting ? (
+                    <span className="animate-pulse">Formatting…</span>
+                  ) : (
+                    <>✦ Format</>
+                  )}
+                </button>
+              )}
+            </div>
             <textarea
               value={description}
               onChange={e => setDescription(e.target.value)}
               rows={12}
               className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y font-mono"
             />
+            {formatError && <p className="text-xs text-red-500 mt-1">{formatError}</p>}
           </div>
 
           {/* Story-specific fields */}
