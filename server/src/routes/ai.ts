@@ -86,6 +86,10 @@ So that [value]
 export function aiRouter(): Router {
   const router = Router()
 
+  router.get('/status', (_req, res) => {
+    res.json({ available: !!process.env.ANTHROPIC_API_KEY })
+  })
+
   router.post('/reformat', async (req, res) => {
     const apiKey = process.env.ANTHROPIC_API_KEY
     if (!apiKey) {
@@ -124,7 +128,9 @@ Rules:
         messages: [{ role: 'user', content: prompt }],
       })
 
-      const raw = (message.content[0] as { type: string; text: string }).text.trim()
+      const block = message.content[0]
+      if (!block || block.type !== 'text') throw new Error('Unexpected response shape')
+      const raw = block.text.trim()
       const jsonStr = raw.replace(/^```json\n?/, '').replace(/^```\n?/, '').replace(/\n?```$/, '')
       const parsed = JSON.parse(jsonStr) as { title: string; description: string }
 

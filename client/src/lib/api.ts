@@ -65,6 +65,7 @@ export const api = {
       request<BoardEvent>('/events', { method: 'POST', body: JSON.stringify(data) }),
   },
   ai: {
+    status: () => request<{ available: boolean }>('/ai/status'),
     reformat: (data: { type: 'epic' | 'feature' | 'story'; title: string; description: string }) =>
       request<{ title: string; description: string }>('/ai/reformat', {
         method: 'POST',

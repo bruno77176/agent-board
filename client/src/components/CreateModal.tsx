@@ -24,12 +24,9 @@ export function CreateModal({ onClose }: Props) {
   const [aiAvailable, setAiAvailable] = useState<boolean | null>(null)
 
   useEffect(() => {
-    api.ai.reformat({ type: 'story', title: '', description: '' })
-      .then(() => setAiAvailable(true))
-      .catch((e: Error) => {
-        if (e.message.includes('not configured') || e.message.includes('ANTHROPIC_API_KEY')) setAiAvailable(false)
-        else setAiAvailable(true)
-      })
+    api.ai.status()
+      .then(r => setAiAvailable(r.available))
+      .catch(() => setAiAvailable(false))
   }, [])
 
   async function handleFormat() {
