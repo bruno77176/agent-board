@@ -35,7 +35,7 @@ export async function nextShortId(
   projectId: string,
   type: 'epic' | 'feature' | 'story'
 ): Promise<string> {
-  const [project] = await sql`SELECT key FROM projects WHERE id = ${projectId}`
+  const [project] = await sql`SELECT key, id FROM projects WHERE id = ${projectId} OR key = ${projectId}`
   const key = project.key
   const [row] = await sql`
     INSERT INTO id_sequences (project_id, type, seq) VALUES (${projectId}, ${type}, 1)
