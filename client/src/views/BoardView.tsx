@@ -160,7 +160,7 @@ export function BoardView({ projectId }: Props) {
           ))}
         </div>
       )}
-      <FilterBar agents={typedAgents} epics={typedEpics} filters={filters} onChange={setFilters} />
+      <FilterBar agents={typedAgents} epics={typedEpics} features={features as Feature[]} filters={filters} onChange={setFilters} />
     </div>
   )
 
