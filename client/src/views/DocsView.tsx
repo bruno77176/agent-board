@@ -31,7 +31,13 @@ export function DocsView({ projectKey }: DocsViewProps) {
     queryFn: () => fetchDocList(projectKey),
   })
 
-  const selected = (files as string[]).find(f => {
+  // Fetch all docs (unfiltered) so slug lookup works regardless of subfolder
+  const { data: allFiles = [] } = useQuery({
+    queryKey: ['docs-all'],
+    queryFn: () => fetchDocList(),
+  })
+
+  const selected = (allFiles as string[]).find(f => {
     const name = f.split('/').pop()?.replace(/\.md$/, '')
     return name === docSlug
   }) ?? null
