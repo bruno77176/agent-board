@@ -163,14 +163,18 @@ export async function seed(sql: postgres.Sql): Promise<void> {
     const currentNames = new Set(currentSkills.map(s => s.name))
     const missing = agentDef.skills.filter(s => !currentNames.has(s.name))
     if (missing.length === 0) continue
-    const filledMissing = missing.map(s => {
-      if (s.name.startsWith('superpowers:')) {
-        const skillName = s.name.replace('superpowers:', '')
-        const content = readSuperpowersSkill(skillName)
-        return { name: s.name, content, source: 'superpowers' as const }
-      }
-      return { name: s.name, content: s.content, source: 'manual' as const }
-    })
+    const filledMissing = missing
+      .map(s => {
+        if (s.name.startsWith('superpowers:')) {
+          const skillName = s.name.replace('superpowers:', '')
+          const content = readSuperpowersSkill(skillName)
+          if (!content) return null  // retry on next restart when plugin is present
+          return { name: s.name, content, source: 'superpowers' as const }
+        }
+        return { name: s.name, content: s.content, source: 'manual' as const }
+      })
+      .filter((s): s is NonNullable<typeof s> => s !== null)
+    if (filledMissing.length === 0) continue
     await sql`UPDATE agents SET skills = ${sql.json([...currentSkills, ...filledMissing])} WHERE id = ${agent.id}`
   }
 
