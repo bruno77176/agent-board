@@ -6,14 +6,18 @@ import os from 'os'
 
 /** Read a superpowers SKILL.md by name. Returns empty string if not found. */
 function readSuperpowersSkill(skillName: string): string {
+  // 1. Try local plugin cache (developer machine)
   const base = path.join(os.homedir(), '.claude', 'plugins', 'cache', 'claude-plugins-official', 'superpowers')
-  if (!fs.existsSync(base)) return ''
-  // Find the latest version directory
-  const versions = fs.readdirSync(base).sort().reverse()
-  for (const version of versions) {
-    const skillPath = path.join(base, version, 'skills', skillName, 'SKILL.md')
-    if (fs.existsSync(skillPath)) return fs.readFileSync(skillPath, 'utf-8')
+  if (fs.existsSync(base)) {
+    const versions = fs.readdirSync(base).sort().reverse()
+    for (const version of versions) {
+      const skillPath = path.join(base, version, 'skills', skillName, 'SKILL.md')
+      if (fs.existsSync(skillPath)) return fs.readFileSync(skillPath, 'utf-8')
+    }
   }
+  // 2. Fall back to bundled skills shipped with the server (production / Railway)
+  const bundled = path.join(process.cwd(), 'server', 'skills', skillName, 'SKILL.md')
+  if (fs.existsSync(bundled)) return fs.readFileSync(bundled, 'utf-8')
   return ''
 }
 
