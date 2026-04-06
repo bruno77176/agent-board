@@ -27,7 +27,7 @@ export function CreateModal({ onClose }: Props) {
     api.ai.reformat({ type: 'story', title: '', description: '' })
       .then(() => setAiAvailable(true))
       .catch((e: Error) => {
-        if (e.message.includes('501')) setAiAvailable(false)
+        if (e.message.includes('not configured') || e.message.includes('ANTHROPIC_API_KEY')) setAiAvailable(false)
         else setAiAvailable(true)
       })
   }, [])
