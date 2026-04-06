@@ -104,6 +104,7 @@ Every epic, feature, and story has both a `short_id` (e.g. `BOARD-E3`, `BOARD-F1
 | `BOARD_URL` | `http://localhost:3000` | MCP server → board URL |
 | `DATABASE_URL` | — | PostgreSQL connection string — auto-injected by Railway Postgres plugin |
 | `DOCS_PATH` | `../docs` | Root directory watched for markdown doc sync |
+| `ANTHROPIC_API_KEY` | — | Anthropic API key — enables the ✦ Format button in the create modal. Optional; if not set the button is hidden. |
 
 ## MCP Tools Available
 
