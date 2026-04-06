@@ -8,18 +8,9 @@
 +
 +After saving the plan file, immediately create the board hierarchy using the templates in `docs/templates/`. Do this BEFORE offering the execution choice. **Mandatory when `mcp__agent-board__create_epic` is available.**
 +
-+### Step 1: Upload the plan to the server
++### Step 1: Create the epic
 +
-+```
-+upload_doc(
-+  file_path: "<absolute local path to the saved plan file>",
-+  relative_path: "plans/<filename>.md"
-+)
-+```
-+
-+Save the `relative_path` -- use it as `source_doc` in Step 2.
-+
-+### Step 2: Create the epic
++The plan file was saved to `docs/plans/<filename>.md` — set `source_doc = "plans/<filename>.md"`.
 +
 +Read `docs/templates/epic-template.md`. Fill every section using content from the plan:
 +- **Title**: H1 heading, strip " Implementation Plan" suffix
@@ -28,9 +19,9 @@
 +- **Value**: why this matters to the project
 +- **Success Criteria**: derive from the plan's task outcomes or stated goals
 +
-+Call `create_epic(project_id, title, description, source_doc=relative_path)`.
++Call `create_epic(project_id, title, description, source_doc="plans/<filename>.md")`.
 +
-+### Step 3: Create feature(s)
++### Step 2: Create feature(s)
 +
 +Read `docs/templates/feature-template.md`. One feature per H2 heading; if no H2 exists, create one feature named after the plan's domain (e.g. "Tasks").
 +
@@ -38,7 +29,7 @@
 +
 +Call `create_feature(epic_id, title, description)` for each.
 +
-+### Step 4: Create stories
++### Step 3: Create stories
 +
 +Read `docs/templates/story-template.md`. One story per H3 task heading.
 +
