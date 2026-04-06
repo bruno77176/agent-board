@@ -91,7 +91,7 @@ export function FilterBar({ agents, epics, features, filters, onChange }: Props)
         {(['all', 'stories', 'features'] as const).map(t => (
           <button
             key={t}
-            onClick={() => onChange({ ...filters, itemType: t })}
+            onClick={() => onChange({ ...filters, itemType: t, featureId: t === 'features' ? '' : filters.featureId })}
             className={`h-6 px-2 text-xs rounded-full border capitalize transition-colors ${
               filters.itemType === t
                 ? 'bg-slate-800 border-slate-800 text-white'
