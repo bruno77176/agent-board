@@ -64,10 +64,17 @@ export const api = {
     create: (data: { target_type: string; target_id: string; agent_id?: string; comment: string }) =>
       request<BoardEvent>('/events', { method: 'POST', body: JSON.stringify(data) }),
   },
+  ai: {
+    reformat: (data: { type: 'epic' | 'feature' | 'story'; title: string; description: string }) =>
+      request<{ title: string; description: string }>('/ai/reformat', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+  },
 }
 
 export interface Project { id: string; key: string; name: string; description?: string; workflow_id: string; is_public: number; created_at: string }
-export interface AgentSkill { name: string; content: string }
+export interface AgentSkill { name: string; content: string; source?: 'superpowers' | 'manual' }
 export interface Agent { id: string; slug: string; name: string; scope?: string; color: string; avatar_emoji: string; skills: AgentSkill[] }
 export interface AcceptanceCriterion { id: string; text: string; checked: boolean }
 export interface WorkflowState { id: string; label: string; color: string }
