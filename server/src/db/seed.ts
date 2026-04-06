@@ -16,7 +16,8 @@ function readSuperpowersSkill(skillName: string): string {
     }
   }
   // 2. Fall back to bundled skills shipped with the server (production / Railway)
-  const bundled = path.join(process.cwd(), 'server', 'skills', skillName, 'SKILL.md')
+  // CWD is the server workspace directory when run via npm --workspace=server
+  const bundled = path.join(process.cwd(), 'skills', skillName, 'SKILL.md')
   if (fs.existsSync(bundled)) return fs.readFileSync(bundled, 'utf-8')
   return ''
 }
