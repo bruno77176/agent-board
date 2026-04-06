@@ -50,6 +50,7 @@ export function BacklogView({ projectId, projectKey }: Props) {
   if (filters.featureId) backlogStories = backlogStories.filter(s => s.feature_id === filters.featureId)
   if (filters.assignees.length > 0) backlogStories = backlogStories.filter(s => s.assigned_agent_id && filters.assignees.includes(s.assigned_agent_id))
   if (filters.priorities.length > 0) backlogStories = backlogStories.filter(s => filters.priorities.includes(s.priority))
+  if (filters.tags.length > 0) backlogStories = backlogStories.filter(s => s.tags.some(t => filters.tags.includes(t)))
   if (filters.search) {
     const q = filters.search.toLowerCase()
     backlogStories = backlogStories.filter(s =>
