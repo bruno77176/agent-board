@@ -23,7 +23,7 @@ npm run dev:client --workspace=client   # Start Vite dev server (proxies /api to
 
 # Build
 npm run build:local                     # Build client + server + mcp (local dev only — Railway uses Dockerfile)
-npm run build                           # Build server + mcp only (used by Railway — no Vite)
+npm run build                           # Build server + mcp only
 npm run build --workspace=server        # Build server only
 npm run build --workspace=mcp           # Build MCP server only (required after MCP changes)
 
@@ -125,9 +125,10 @@ The `agent-board/skills/board-workflow.md` skill defines how agents interact wit
 - `dev-in` — backend implementation
 - `fron-tina` — frontend implementation
 - `doc-tor` — documentation
+- `pip-lynn` — CI/CD & pipelines
 
 When implementing stories, agents use `start_story` before work and `complete_story` after verification.
 
 ## Deployment
 
-Deployed on Railway via `railway.json` using Nixpacks (no Dockerfile). The server serves both API and static client files from the same process. The MCP server must be configured separately in each user's `.mcp.json` pointing to the deployed `BOARD_URL`.
+Deployed on Railway using a `Dockerfile` (Node 22 Alpine). The build runs `npm run build:local` (client + server + mcp), then starts the server which serves both API and static client files from the same process. The MCP server must be configured separately in each user's `.mcp.json` pointing to the deployed `BOARD_URL`.

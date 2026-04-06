@@ -4,7 +4,7 @@ A Jira-like project management system for Claude Code agents. Agents have named 
 
 ## Architecture
 
-- **Web app** (Express + React + SQLite) — deployed to Railway
+- **Web app** (Express + React + PostgreSQL) — deployed to Railway
 - **MCP server** (Node.js stdio) — runs locally in Claude Code
 - **board-workflow skill** — maps superpowers skills to agent identities
 - **doc-watcher** — watches `docs/plans/` and auto-creates board items from markdown
@@ -29,7 +29,7 @@ This applies three small, conditional patches to superpowers skills that enforce
 
 Push to GitHub — Railway auto-deploys on push to `master`.
 
-Add a volume mounted at `/app/data` for SQLite persistence.
+Add a Railway PostgreSQL plugin and set the required environment variables.
 
 ### 2. Configure the MCP server
 
@@ -101,22 +101,7 @@ When a plan file is deleted, all non-done stories from its epic are archived.
 
 ## Deployment
 
-The app is deployed on [Railway](https://railway.app) using **Nixpacks** — no Dockerfile needed. Railway detects Node.js, runs the build, then starts the server. One process serves both the API and the React frontend.
-
-### Pre-built client
-
-**`client/dist/` is committed to git.** Railway's build environment is pinned to Node 18, which is incompatible with Vite 8 (requires Node 20.19+). The workaround is to build the client locally and commit the compiled output.
-
-**Whenever you change frontend code, rebuild before pushing:**
-
-```bash
-npm run build:local    # client + server + mcp
-git add client/dist/
-git commit -m "chore: rebuild client dist"
-git push
-```
-
-Skipping this means users will see the old UI.
+The app is deployed on [Railway](https://railway.app) using the **Dockerfile** (Node 22 Alpine). Railway builds the image via `npm run build:local` (client + server + mcp) and starts the server. One process serves both the API and the React frontend.
 
 ### Auth setup (OAuth)
 
@@ -139,8 +124,8 @@ The first user to log in is automatically promoted to admin. All subsequent user
 | `GITHUB_CLIENT_ID` | Yes | GitHub OAuth client ID |
 | `GITHUB_CLIENT_SECRET` | Yes | GitHub OAuth client secret |
 | `BASE_URL` | Yes (prod) | Public URL of the app, e.g. `https://yourapp.railway.app` |
+| `DATABASE_URL` | Yes | PostgreSQL connection string — auto-injected by Railway Postgres plugin |
 | `BOARD_URL` | MCP only | URL the MCP server uses to reach the board (default: `http://localhost:3000`) |
-| `DATA_DIR` | No | Directory for `data.db` SQLite file (default: cwd) |
 | `DOCS_PATH` | No | Directory watched for markdown doc sync (default: `../docs`) |
 
 ## Agent Roster
