@@ -86,11 +86,12 @@ export function featuresRouter(sql: Sql, broadcast: Broadcast): Router {
     const { epic_id, title, description, tags } = req.body
     if (!epic_id || !title) return res.status(400).json({ error: 'epic_id and title required' })
     const id = randomUUID()
-    const [epic] = await sql`SELECT project_id FROM epics WHERE id = ${epic_id}`
+    const [epic] = await sql`SELECT id, project_id FROM epics WHERE id = ${epic_id} OR short_id = ${epic_id}`
+    if (!epic) return res.status(400).json({ error: 'Epic not found' })
     const short_id = await nextShortId(sql, epic.project_id, 'feature')
     await sql`
       INSERT INTO features (id, epic_id, title, description, tags, short_id)
-      VALUES (${id}, ${epic_id}, ${title}, ${description ?? null}, ${sql.json(tags ?? [])}, ${short_id})
+      VALUES (${id}, ${epic.id}, ${title}, ${description ?? null}, ${sql.json(tags ?? [])}, ${short_id})
     `
     const [feature] = await sql`SELECT * FROM features WHERE id = ${id}`
     broadcast({ type: 'feature.created', data: feature })

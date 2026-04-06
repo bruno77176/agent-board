@@ -103,8 +103,11 @@ export function epicsRouter(sql: Sql, broadcast: Broadcast): Router {
   })
 
   router.post('/', async (req, res) => {
-    const { project_id, title, description, version, source_doc } = req.body
-    if (!project_id || !title) return res.status(400).json({ error: 'project_id and title required' })
+    const { project_id: projectIdOrKey, title, description, version, source_doc } = req.body
+    if (!projectIdOrKey || !title) return res.status(400).json({ error: 'project_id and title required' })
+    const [project] = await sql`SELECT id FROM projects WHERE id = ${projectIdOrKey} OR key = ${projectIdOrKey}`
+    if (!project) return res.status(400).json({ error: 'Project not found' })
+    const project_id = project.id
     const id = randomUUID()
     const short_id = await nextShortId(sql, project_id, 'epic')
     await sql`INSERT INTO epics (id, project_id, title, description, version, short_id, source_doc)
