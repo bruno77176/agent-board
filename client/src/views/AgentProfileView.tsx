@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, ChevronDown, ChevronRight, Plus, X } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { Agent, AgentSkill, Story } from '@/lib/api'
+import { MarkdownContent } from '@/components/MarkdownContent'
 
 const STATUS_COLOR: Record<string, string> = {
   todo: 'bg-slate-100 text-slate-600',
@@ -81,7 +82,7 @@ export function AgentProfileView() {
 
   function addSkill() {
     if (!newSkillName.trim()) return
-    saveSkills([...skills, { name: newSkillName.trim(), content: newSkillContent }])
+    saveSkills([...skills, { name: newSkillName.trim(), content: newSkillContent, source: 'manual' as const }])
     setNewSkillName('')
     setNewSkillContent('')
     setAddingSkill(false)
@@ -139,7 +140,12 @@ export function AgentProfileView() {
                     >
                       {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                     </button>
-                    {isEditingName ? (
+                    {/* Skill name — not editable for superpowers */}
+                    {skill.source === 'superpowers' ? (
+                      <span className="flex-1 text-sm font-medium text-slate-700 truncate">
+                        {skill.name}
+                      </span>
+                    ) : isEditingName ? (
                       <input
                         autoFocus
                         value={skill.name}
@@ -160,29 +166,41 @@ export function AgentProfileView() {
                         {skill.name}
                       </span>
                     )}
-                    <button
-                      onClick={() => deleteSkill(idx)}
-                      className="text-slate-300 hover:text-red-400 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X size={13} />
-                    </button>
+
+                    {/* Delete — only for manual skills */}
+                    {skill.source !== 'superpowers' && (
+                      <button
+                        onClick={() => deleteSkill(idx)}
+                        className="text-slate-300 hover:text-red-400 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X size={13} />
+                      </button>
+                    )}
                   </div>
 
                   {/* Expanded content editor */}
                   {isExpanded && (
                     <div className="px-3 py-2 border-t border-slate-200">
-                      <textarea
-                        value={skill.content}
-                        onChange={e => {
-                          const updated = skills.map((s, i) => i === idx ? { ...s, content: e.target.value } : s)
-                          queryClient.setQueryData(['agent', agentSlug], { ...typedAgent, skills: updated })
-                        }}
-                        onBlur={e => updateSkillContent(idx, e.target.value)}
-                        rows={10}
-                        placeholder="Paste skill content here…"
-                        className="w-full text-xs text-slate-600 font-mono border border-slate-200 rounded p-2 focus:outline-none focus:ring-1 focus:ring-blue-400 resize-y"
-                      />
-                      <p className="text-[10px] text-slate-300 mt-1">Changes save on blur</p>
+                      {skill.source === 'superpowers' ? (
+                        <div className="prose prose-sm max-w-none text-xs text-slate-600 py-1">
+                          <MarkdownContent>{skill.content || '*No content loaded.*'}</MarkdownContent>
+                        </div>
+                      ) : (
+                        <>
+                          <textarea
+                            value={skill.content}
+                            onChange={e => {
+                              const updated = skills.map((s, i) => i === idx ? { ...s, content: e.target.value } : s)
+                              queryClient.setQueryData(['agent', agentSlug], { ...typedAgent, skills: updated })
+                            }}
+                            onBlur={e => updateSkillContent(idx, e.target.value)}
+                            rows={10}
+                            placeholder="Paste skill content here…"
+                            className="w-full text-xs text-slate-600 font-mono border border-slate-200 rounded p-2 focus:outline-none focus:ring-1 focus:ring-blue-400 resize-y"
+                          />
+                          <p className="text-[10px] text-slate-300 mt-1">Changes save on blur</p>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
