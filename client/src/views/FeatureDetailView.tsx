@@ -4,6 +4,7 @@ import { api } from '@/lib/api'
 import type { Feature, Story, Agent, Epic } from '@/lib/api'
 import { ArrowLeft } from 'lucide-react'
 import { MarkdownContent } from '@/components/MarkdownContent'
+import { featureColor } from '@/lib/featureColor'
 
 interface Props { featureId: string; projectKey: string }
 
@@ -60,14 +61,21 @@ export function FeatureDetailView({ featureId, projectKey }: Props) {
         </button>
         <div className="flex items-center gap-2 text-xs text-slate-400 mb-2">
           {typedEpic && (
-            <button
-              onClick={() => navigate(`/${projectKey}/epics/${typedEpic.short_id ?? typedEpic.id}`)}
-              className="font-medium text-slate-500 hover:text-blue-600"
-            >
-              {typedEpic.title}
-            </button>
+            <>
+              {(() => {
+                const epicColors = featureColor(typedEpic.id)
+                return (
+                  <button
+                    onClick={() => navigate(`/${projectKey}/epics/${typedEpic.short_id ?? typedEpic.id}`)}
+                    className={`inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded ${epicColors.bg} ${epicColors.text} hover:opacity-80 transition-opacity`}
+                  >
+                    {typedEpic.short_id} {typedEpic.title.length > 32 ? typedEpic.title.slice(0, 32) + '…' : typedEpic.title}
+                  </button>
+                )
+              })()}
+              <span>›</span>
+            </>
           )}
-          {typedEpic && <span>›</span>}
           <span>Feature</span>
         </div>
         <div className="flex items-start justify-between gap-4">
