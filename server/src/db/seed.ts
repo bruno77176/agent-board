@@ -124,8 +124,7 @@ export async function seed(sql: postgres.Sql): Promise<void> {
         name = EXCLUDED.name,
         scope = EXCLUDED.scope,
         color = EXCLUDED.color,
-        avatar_emoji = EXCLUDED.avatar_emoji,
-        skills = EXCLUDED.skills
+        avatar_emoji = EXCLUDED.avatar_emoji
     `
   }
 
@@ -153,5 +152,38 @@ export async function seed(sql: postgres.Sql): Promise<void> {
       return skill
     })
     if (changed) await sql`UPDATE agents SET skills = ${sql.json(updated)} WHERE id = ${agent.id}`
+  }
+
+  // Migration 3: add missing superpowers skills (additive — never removes manual skills)
+  const allAgents3 = await sql`SELECT id, slug, skills FROM agents`
+  for (const agent of allAgents3) {
+    const agentDef = AGENTS.find(a => a.slug === agent.slug)
+    if (!agentDef) continue
+    const currentSkills = (agent.skills ?? []) as { name: string; content: string; source?: string }[]
+    const currentNames = new Set(currentSkills.map(s => s.name))
+    const missing = agentDef.skills.filter(s => !currentNames.has(s.name))
+    if (missing.length === 0) continue
+    const filledMissing = missing.map(s => {
+      if (s.name.startsWith('superpowers:')) {
+        const skillName = s.name.replace('superpowers:', '')
+        const content = readSuperpowersSkill(skillName)
+        return { name: s.name, content, source: 'superpowers' as const }
+      }
+      return { name: s.name, content: s.content, source: 'manual' as const }
+    })
+    await sql`UPDATE agents SET skills = ${sql.json([...currentSkills, ...filledMissing])} WHERE id = ${agent.id}`
+  }
+
+  // Migration 4: add source field to skills that don't have it
+  const allAgents4 = await sql`SELECT id, skills FROM agents`
+  for (const agent of allAgents4) {
+    const skills = (agent.skills ?? []) as { name: string; content: string; source?: string }[]
+    const needsMigration = skills.some(s => s.source === undefined)
+    if (!needsMigration) continue
+    const updated = skills.map(s => ({
+      ...s,
+      source: s.source ?? (s.name.startsWith('superpowers:') ? 'superpowers' : 'manual'),
+    }))
+    await sql`UPDATE agents SET skills = ${sql.json(updated)} WHERE id = ${agent.id}`
   }
 }
