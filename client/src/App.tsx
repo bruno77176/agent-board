@@ -120,7 +120,7 @@ function ProjectRoutes({ view }: { view: string }) {
   }
 
   if (view === 'board') return <BoardView projectId={project.id} />
-  if (view === 'backlog') return <BacklogView projectId={project.id} />
+  if (view === 'backlog') return <BacklogView projectId={project.id} projectKey={project.key} />
   if (view === 'epics') return <EpicsView projectId={project.id} projectKey={project.key} />
   if (view === 'epicDetail') return <EpicDetailView epicId={epicId ?? ''} projectKey={project.key} />
   if (view === 'story') return <StoryDetailView storyId={storyId ?? ''} projectKey={project.key} />
