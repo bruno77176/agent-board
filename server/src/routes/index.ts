@@ -9,6 +9,7 @@ import { storiesRouter } from './stories.js'
 import { eventsRouter } from './events.js'
 import { docsRouter } from './docs.js'
 import { adminRouter } from './admin.js'
+import { aiRouter } from './ai.js'
 
 export type { Broadcast } from '../ws/index.js'
 
@@ -23,5 +24,6 @@ export function createRouter(sql: Sql, broadcast: import('../ws/index.js').Broad
   router.use('/events', eventsRouter(sql, broadcast))
   router.use('/docs', docsRouter())
   router.use('/admin', adminRouter(sql))
+  router.use('/ai', aiRouter())
   return router
 }
