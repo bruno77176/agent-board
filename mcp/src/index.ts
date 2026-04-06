@@ -209,11 +209,31 @@ server.tool(
 
 server.tool(
   'start_story',
-  'Assign a story to an agent and move it to In Progress',
+  'Assign a story to an agent and move it to In Progress. Returns story details + your skill definitions.',
   { story_id: z.string(), agent_id: z.string().describe('Agent slug, e.g. tess-ter') },
   async ({ story_id, agent_id }) => {
     const story = await board.moveStatus(story_id, 'in_progress', agent_id, 'Started work')
-    return { content: [{ type: 'text' as const, text: `${story.short_id ?? story.id} "${story.title}" → In Progress (${agent_id})` }] }
+
+    let skillsSection = ''
+    try {
+      const agent = await board.getAgent(agent_id)
+      const skills = (agent?.skills ?? []) as { name: string; content: string; source?: string }[]
+      const withContent = skills.filter(s => s.content?.trim())
+      if (withContent.length > 0) {
+        skillsSection = '\n\n---\n## Your Skills\n\n' + withContent.map(s =>
+          `### ${s.name}\n\n${s.content}`
+        ).join('\n\n---\n\n')
+      }
+    } catch {
+      // graceful degradation
+    }
+
+    return {
+      content: [{
+        type: 'text' as const,
+        text: `${story.short_id ?? story.id} "${story.title}" → In Progress (${agent_id})${skillsSection}`
+      }]
+    }
   }
 )
 

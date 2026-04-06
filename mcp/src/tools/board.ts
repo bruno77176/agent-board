@@ -23,6 +23,7 @@ export const board = {
   getStories: (project_id: string) => call(`/stories?project_id=${project_id}`),
   getStory: (id: string) => call(`/stories/${id}`),
   listAgents: () => call('/agents'),
+  getAgent: (slug: string) => call(`/agents/${slug}`),
   listEpics: (project_id: string) => call(`/epics?project_id=${project_id}`),
   createEpic: (data: object) => call('/epics', 'POST', data),
   createFeature: (data: object) => call('/features', 'POST', data),
