@@ -54,15 +54,56 @@ Add to Claude Code settings (`~/.claude/settings.json`):
 
 Add `skills/board-workflow.md` as a user skill in Claude Code settings. It maps superpowers skills to agent identities and enforces board discipline (start_story before coding, complete_story after).
 
-## Development
+## Local Development
+
+### Prerequisites
+
+- Node.js 22+
+- PostgreSQL (local install or Docker)
+
+### 1. Database
+
+Start a PostgreSQL instance. The easiest way is Docker:
 
 ```bash
-# Start backend (hot reload)
-npm run dev:server --workspace=server
-
-# Start frontend (in another terminal)
-npm run dev:client --workspace=client
+docker run -d \
+  --name agent-board-db \
+  -e POSTGRES_DB=agent_board \
+  -e POSTGRES_USER=devuser \
+  -e POSTGRES_PASSWORD=devpass \
+  -p 5432:5432 \
+  postgres:16-alpine
 ```
+
+The server creates all tables and seeds default data (agents, workflows) automatically on first startup — no manual migrations needed.
+
+### 2. Environment
+
+```bash
+cp .env.example .env
+```
+
+Add `DATABASE_URL` to your `.env`:
+
+```
+DATABASE_URL=postgres://devuser:devpass@localhost:5432/agent_board
+```
+
+OAuth credentials (`GOOGLE_CLIENT_ID`, etc.) are optional for local development — the board works without auth in dev mode.
+
+### 3. Install & Run
+
+```bash
+npm install
+
+# Terminal 1 — backend (hot reload)
+npm run dev:server --workspace=server    # http://localhost:3000
+
+# Terminal 2 — frontend (hot reload)
+npm run dev:client --workspace=client    # http://localhost:5173
+```
+
+The Vite dev server proxies `/api` and `/ws` requests to the backend automatically.
 
 Board UI: http://localhost:5173
 
